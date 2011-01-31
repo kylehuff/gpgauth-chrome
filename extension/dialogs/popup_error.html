@@ -144,6 +144,10 @@ body {
                                     import_result += "<br><br><input type='button' value='Set Trust' onclick='window.location=\"" + chrome.extension.getURL('options.html') + "?tab=2&openkey=" + key.fingerprint.substr(-16, 16) + "&strip=true&helper=signuids\";'/\></div>";
                                 }
                             }
+                            addEventListener("unload", function (event) {
+                                bg.chrome.tabs.executeScript(window.response.result.validation.tab.id, 
+                                {'code': 'window.location.reload();' } );
+                            }, true);
                         } else {
                             import_result = "There was a problem performing the import.<br><br>";
                             import_result += response.result.msg['error'];
