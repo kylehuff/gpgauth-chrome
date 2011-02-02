@@ -1,6 +1,6 @@
 /* Constants */
 GPGAUTH_VERSION = "v1.3.0";
-CLIENT_VERSION = "v1.0.3";
+CLIENT_VERSION = "v1.0.4";
 
 // HTTP Headers
 SERVER_GPGAUTH_VERSION = 'X-GPGAuth-Version'        /* HTTP Header that reports the gpgAuth server implementation version
@@ -60,7 +60,7 @@ var gpgAuth = {
             var response_headers = null;
 
             request.open("HEAD", document.URL, false);
-            request.setRequestHeader('X-User-Agent', 'gpgauth-discovery-chrome/1.0.3');
+            request.setRequestHeader('X-User-Agent', 'gpgauth-discovery-chrome/' + CLIENT_VERSION);
             request.send(null);
             /* Make the request */
             response_headers = request.getAllResponseHeaders();

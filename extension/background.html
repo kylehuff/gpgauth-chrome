@@ -2,6 +2,8 @@
 <head>
 <script>
 
+var CLIENT_VERSION = '1.0.4';
+
 var domain_trust_detail = {
         '-7': "The domain UID and/or domain key was signed by an expired key",
         '-6': "The domain UID and/or domain key was signed by a key that has been revoked",
@@ -112,11 +114,12 @@ var gpgauth_prefs = {
 var gpgauthBackground = {
 
     init: function() {
-        if (!localStorage.config_complete && localStorage.enabled) {
+        //if (!localStorage.config_complete && localStorage.enabled) {
             // The configuration druid has not run, we need to start it.
             //chrome.tabs.create({url: chrome.extension.getURL('druid.html')});
-        }
-        //TODO: maybe a check of the version and update here ??
+        //}
+        // source code for the plugin can be found here:
+        //      https://github.com/gpgauth/gpgauth-npapi
         plugin = document.createElement('embed');
         plugin.id = 'plugin';
         plugin.type = 'application/x-gpgauth';
@@ -325,7 +328,7 @@ var gpgauthBackground = {
                 msg = null;
                 var http = new XMLHttpRequest();
                 http.open("GET", pubkey_url + "#" + new Date().getTime(), false);
-                http.setRequestHeader('X-User-Agent', 'gpgauth v1.0.3/chrome');
+                http.setRequestHeader('X-User-Agent', 'gpgauth ' + CLIENT_VERSION + '/chrome');
                 http.send(null);
 
                 if(http.readyState == 4 && http.status == 200) {
@@ -380,7 +383,7 @@ var gpgauthBackground = {
         var keyid = gpgauth_prefs.default_key.get();
         var params = "gpg_auth:keyid=" + encodeURIComponent(keyid);
         http.open("POST", login_url, false);
-        http.setRequestHeader('X-User-Agent', 'gpgauth v1.0.3/chrome');
+        http.setRequestHeader('X-User-Agent', 'gpgauth ' + CLIENT_VERSION + '/chrome');
         http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         http.send(params);
         console.log(params);
@@ -527,7 +530,7 @@ var gpgauthBackground = {
         var http = new XMLHttpRequest();
         var params = "gpg_auth:server_verify_token=" + encodeURIComponent(encrypted_token);
         http.open("POST", this.gpg_elements[domain]['server_verify_url'], false);
-        http.setRequestHeader('X-User-Agent', 'gpgauth v1.0.3/chrome');
+        http.setRequestHeader('X-User-Agent', 'gpgauth ' + CLIENT_VERSION + '/chrome');
         //Send the proper header information along with the request
         http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         http.send(params);

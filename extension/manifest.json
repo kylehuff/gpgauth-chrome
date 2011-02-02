@@ -1,13 +1,14 @@
 {
-  "name": "gpgAuth",
-  "version": "1.0.3",
-  "description": "The offical gpgAuth extention for Google Chrome - http://www.gpgauth.org",
+  "name": "gpgAuth web client",
+  "version": "1.0.4",
+  "description": "The offical gpgAuth web client extention for Google Chrome and Chromium",
   "background_page": "background.html",
   "icons": {
       "128": "images/gpgauth-128.png",
       "16": "images/gpgauth-16.png",
       "32": "images/gpgauth-32.png",
-      "48": "images/gpgauth-48.png"
+      "48": "images/gpgauth-48.png",
+      "64": "images/gpgauth-64.png"
    },
   "permissions": [
        "tabs",
@@ -24,14 +25,14 @@
   ],
   "options_page": "options.html",
   "page_action": {
-    "default_icon": "images/badges/default.png", // required
-    "default_title": "gpgAuth Enabled website",    // optional; shown in tooltip
+    "default_icon": "images/badges/default.png",
+    "default_title": "gpgAuth Enabled website",
     "default_popup": "dialogs/enabled.html"
   },
   "plugins": [
-    { "path": "plugins/Darwin_x86-gcc3/npgpgAuth-v1.0.3b.plugin", "public": false },    // Mac OS X x86 NPAPI Binary
-    { "path": "plugins/Linux_x86-gcc3/npgpgAuth-v1.0.3b.so", "public": false },         // Linux x86 NPAPI Binary
-    { "path": "plugins/Linux_x86_64-gcc3/npgpgAuth-v1.0.3b.so", "public": false },      // Linux x64 NPAPI Binary
-    { "path": "plugins/WINNT_x86-msvc/npgpgAuth-v1.0.3b.dll", "public": false }         // Windows x86 NPAPI Binary
+    { "path": "plugins/Darwin_x86-gcc3/npgpgAuth-v1.0.3b.plugin", "public": false },
+    { "path": "plugins/Linux_x86-gcc3/npgpgAuth-v1.0.3b.so", "public": false },
+    { "path": "plugins/Linux_x86_64-gcc3/npgpgAuth-v1.0.3b.so", "public": false },
+    { "path": "plugins/WINNT_x86-msvc/npgpgAuth-v1.0.3b.dll", "public": false }
   ]
 }

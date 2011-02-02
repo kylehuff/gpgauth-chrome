@@ -624,7 +624,6 @@ $(function(){
         $("#header").remove();
         $(document.getElementsByTagName("ul")[0]).remove();
     }
-    $('#window_functions')[0].innerHTML += "<input type='button' id='close' value='Finished'>";
     $('#close').button().click(function(e) { window.close(); });
     if (query_string.helper) {
         function bounce(elem_class, left, top, perpetual) {
@@ -1043,7 +1042,9 @@ ul.expand ul
         </div>
     </div>
     <br/>
-    <div id="window_functions" style="width:100%; text-align:right;"></div>
+    <div id="window_functions" style="width:100%; text-align:right; clear:left;">
+        <br/><br/><input type='button' id='close' value='Finished'>
+    </div>
 </div>
 <div id="delsig-confirm" style="display: none;" title="Delete this Signature?">
     <p><span class="ui-icon ui-icon-help" style="float:left; margin:0 7px 20px 0;"></span><span id='delsig-text'>Are you sure you wish to delete this signature?</span></p>
