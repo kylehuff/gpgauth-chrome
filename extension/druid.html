@@ -6,6 +6,7 @@
 <script type="text/javascript" src="jquery/js/jquery-ui-1.8.4.custom.min.js"></script>
 <script>
     var ext = chrome.extension.getBackgroundPage();
+
     $(function(){
         $('#tabs').tabs();
         $('.next-button').button().click(function(e) {
@@ -13,10 +14,22 @@
             end = $("#tabs").tabs("length");
             if (selected + 1 < end) {
                 $("#tabs").tabs("option", "selected",  selected + 1);
+                if (selected + 1 == 2)
+                    $("#options_frame").attr("src", chrome.extension.getURL('options.html') + "?tab=1");
             } else {
-                alert('findished');
+                window.close();
+            }
+            ext.gpgauth_prefs.gpgauth_enabled.set(true);
+            localStorage.config_complete = true;
+        });
+
+        $('.prev-button').button().click(function(e) {
+            selected = $("#tabs").tabs("option", "selected");
+            if (selected - 1 > -1) {
+                $("#tabs").tabs("option", "selected",  selected - 1);
             }
         });
+
 
         $('#trust-level-sel').ready(function(e){
             trust_level = window.ext.gpgauth_prefs.trust_level.get();
@@ -63,7 +76,6 @@ body{
     background:#fff;
     display:inline-block;
     padding:8px;
-    cursor:pointer;
     -moz-border-radius: 4px;
     -webkit-border-radius: 4px;
     -moz-box-shadow:#666 2px 2px 2px;
@@ -95,9 +107,9 @@ body{
     color:gray;
 }
 
-#trust-list .level:hover {
-    font-weight:bold;
-}
+<!--#trust-list .level:hover {-->
+<!--    font-weight:bold;-->
+<!--}-->
 
 #trust-level-desc {
     color: #000;
@@ -117,9 +129,9 @@ body{
     width: 600px;
 }
 
-.trust-level-desc:hover {
-    background-color: #1C1;
-}
+<!--.trust-level-desc:hover {-->
+<!--    background-color: #1C1;-->
+<!--}-->
 
 #trust-level-desc .selected {
     background-color: #F58400;
@@ -158,6 +170,28 @@ body{
 .trust-desc {
     clear:right;
 }
+
+.error {
+    background-color: #FF4100;
+    text-shadow:#000 1px 1px 1px;
+}
+
+.warning {
+    background-color: #FFFF00;
+    color: #000;
+    text-shadow:#fff 1px 1px 1px;
+
+}
+
+.warning a {
+    color: #000;
+}
+
+.controls {
+    width: 49%;
+    padding-top: 15px;
+    display: inline-block;
+}
 </style>
 </head>
 <body>
@@ -167,7 +201,7 @@ body{
         <li><a id='tab-1-btn' href="#tabs-1">Step 1: System Check</a></li>
         <li><a id='tab-2-btn' href="#tabs-2">Step 2: Trust</a></li>
         <li><a id='tab-3-btn' href="#tabs-3">Step 3: Your Keys</a></li>
-        <li><a id='tab-4-btn' href="#tabs-4">Step 4: Provider Keys</a></li>
+        <li><a id='tab-4-btn' href="#tabs-4">Step 4: Finish Setup</a></li>
     </ul>
     <div id="tabs-1">
         <div id="step-1" style="text-align: center;">
@@ -179,12 +213,21 @@ body{
                 $('#tab-1-btn').click(function(){
                     doSystemCheck();
                 });
+                $('#tabs-2').ready(function(){
+                    ext.gpgauth_prefs.gpgauth_enabled.set(true);
+                    localStorage.config_complete = true;
+                });
                 function doSystemCheck() {
-                    // check for gpgconf functionality
-                    // check the config for use-agent directive
-                    bg = chrome.extension.getBackgroundPage();
-                    if (bg.plugin && bg.plugin.valid) {
-                        gpg_status = bg.plugin.gpg_status;
+                    pf = window.clientInformation.platform.substr(0,3);
+                    platform = "";
+                    if (pf == "Win") {
+                        platform = "-mswindows";
+                    }
+                    if (pf == "Mac") {
+                        platform = "-macosx";
+                    }
+                    if (ext.plugin && ext.plugin.valid) {
+                        gpg_status = ext.plugin.gpg_status;
                         errors = {
                             'NPAPI' : { 'error' : false, 'detail': "The NPAPI Plugin is valid." },
                             'libgpgme' : { 'error' : false, 'detail' : "It appears you have a working version of libgpgme; we have detected version: " + gpg_status.gpgme_version },
@@ -197,7 +240,7 @@ body{
                             errors['libgpgme'] = {
                                 'error': true,
                                 'detail': "You do not appear to have libgpgme; libgpgme is required.",
-                                'link' : "this should be a link to get some help for this..",
+                                'link' : "http://gpgauth.org/projects/gpgauth-chrome/support-libgpgme",
                             }
                         }
                         console.log(errors['libgpgme']['detail']);
@@ -206,7 +249,7 @@ body{
                             errors['gpg_agent'] = {
                                 'error': true,
                                 'detail': "You do not appear to have a key-agent configured. A working key-agent is required",
-                                'link' : "this should be a link to get some help for this..",
+                                'link' : "http://gpgauth.org/projects/gpgauth-chrome/support-libgpgme",
                             }
                         }
                         console.log(errors['gpg_agent']['detail']);
@@ -215,7 +258,7 @@ body{
                             errors['gpgconf'] = {
                                 'error': true,
                                 'detail': "gpgconf does not appear to be installed; You will not be able to create signatures",
-                                'link' : "this should be a link to get some help for this..",
+                                'link' : "http://gpgauth.org/projects/gpgauth-chrome/support-gpgconf",
                             }
                         }
                         console.log(errors['gpgconf']['detail']);
@@ -225,18 +268,22 @@ body{
 				        "NPAPI" : {
 	                            'error': true,
 	                            'detail': "There was a problem loading the plugin; the issue might be caused by the plugin being incompatibly compiled for this architechture.",
-	                            'link' : "this should be a link..",
+	                            'link' : null,
 	                        }
 			            }
                         console.log(errors['NPAPI']['detail']);
                     }
                 }
+                show_refresh = false;
                 for (error in errors) {
                     if (errors[error]['error']) {
                         document.getElementById('system-good').style.display = 'none';
                         document.getElementById('system-error').style.display = 'block';
+                        show_refresh = true;
                     }
-                    item_result = "<div class=\"trust-level-desc\">" +
+                    extra_class = (errors[error]['error'] && error != 'gpgconf') ? ' error' : '';
+                    extra_class = (errors[error]['error'] && error == 'gpgconf') ? ' warning' : extra_class;
+                    item_result = "<div class=\"trust-level-desc" + extra_class + "\">" +
                             "<span class=\"system-check\" style=\"margin-right:8px;\"><img src='images/";
                     if (errors[error]['error']) {
                         item_result += 'cancel.png';
@@ -244,9 +291,17 @@ body{
                         item_result += 'check.png';
                     }
                     item_result += "'></span>" +
-                            "<span class=\"trust-desc\">" + errors[error]['detail'] + "</span>";
+                            "<span class=\"trust-desc\">" + errors[error]['detail'];
+                    if (errors[error]['error'] && errors[error]['link']) item_result += " - <a href=\"" + errors[error]['link'] + platform + "/\" target=\"new\">click here for help resolving this issue</a>";
+                    item_result += "</span>";
                     document.getElementById('status_result').innerHTML += item_result;
                 }
+                if (show_refresh) {
+                    document.getElementById('status_result').innerHTML += "<input type='button' value='Refresh' class='recheck-button'/>";
+                }
+                $('.recheck-button').button().click(function(e) {
+                    doSystemCheck();
+                });
             });
             </script>
             <div class="bound-box">
@@ -325,7 +380,10 @@ body{
                 <div style="clear:both">&nbsp;</div>
             </div>
         </div>
-        <div class="controls" style="width: 100%; text-align: right; padding-top: 15px;">
+        <div class="controls" style="text-align: left;">
+            <input type="button" class="prev-button" value="Previous: System Check"/>
+        </div>
+        <div class="controls" style="text-align: right;">
             <input type="button" class="next-button" value="Next: Your Keys"/>
         </div>
     </div>
@@ -345,6 +403,7 @@ body{
                             $(options_frame).css("width", "90%")
                             $(options_frame).css("margin", "auto")
                             options_frame.removeChild($(options_frame).find("#header")[0]);
+                            options_frame.removeChild($(options_frame).find("#setup_link")[0]);
                             ul = $(options_frame).find("ul");
                             ul.parent()[0].removeChild(ul[0]);
                             buttons = $(options_frame).find("#window_functions");
@@ -354,13 +413,20 @@ body{
                 </script>
             </div>
         </div>
-        <div class="controls" style="width: 100%; text-align: right; padding-top: 15px;">
-            <input type="button" class="next-button" value="Next: Provider Keys"/>
+        <div class="controls" style="text-align: left;">
+            <input type="button" class="prev-button" value="Previous: Trust"/>
+        </div>
+        <div class="controls" style="text-align: right;">
+            <input type="button" class="next-button" value="Next: Finish Setup"/>
         </div>
     </div>
-    <div id="tabs-4">
+    <div id="tabs-4" style="text-align: center;">
+        <div class="bound-box">
+            <p>You have completed the setup process!</p>
+            <p>Please click the Finished button below to complete the setup and close this window.</p>
+        </div>
         <div class="controls" style="width: 100%; text-align: right; padding-top: 15px;">
-            <input type="button" class="next-button" value="Done"/>
+            <input type="button" class="next-button" value="Save"/>
         </div>
     </div>
 </div>

@@ -114,12 +114,14 @@ var gpgauth_prefs = {
 var gpgauthBackground = {
 
     init: function() {
-        //if (!localStorage.config_complete && localStorage.enabled) {
+        if (!localStorage.config_complete) {
             // The configuration druid has not run, we need to start it.
-            //chrome.tabs.create({url: chrome.extension.getURL('druid.html')});
-        //}
-        // source code for the plugin can be found here:
-        //      https://github.com/gpgauth/gpgauth-npapi
+            chrome.tabs.create({url: chrome.extension.getURL('druid.html')});
+        }
+
+        // information and source code for the plugin can be found here:
+        //      http://gpgauth.org/projects/gpgauth-npapi/
+
         plugin = document.createElement('embed');
         plugin.id = 'plugin';
         plugin.type = 'application/x-gpgauth';

@@ -13,6 +13,8 @@ $(function(){
     $('#enable-gpgauth-check')[0].checked = 
         (window.ext.gpgauth_prefs.gpgauth_enabled.get() == 'true');
 
+    $('#setup_link')[0].href = chrome.extension.getURL('druid.html');
+
     $('#tab-2-btn').click(function(){
         if (!window.private_built) {
             $("#dialog-modal").dialog({
@@ -1117,6 +1119,7 @@ ul.expand ul
         </form>
     </p>
 </div>
+<a id="setup_link" href="">If you would like to run the Setup again, click here</a>
 <div id="dialog-modal" title="">
     <div id="dialog-msg"></div>
 </div>
