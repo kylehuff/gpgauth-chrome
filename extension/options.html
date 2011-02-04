@@ -262,7 +262,7 @@ $(function(){
                 keyobj.innerHTML = "<h3 class='private_keylist' style='height: 24px;'><a href='#'><span style='margin: 0;width: 50%;'>" + keylist[key].name + 
                     "&nbsp;&nbsp;-&nbsp;&nbsp;[0x" + key.substr(-8) + "]</span></a><span class='trust' style='z-index:1000; left: 12px; top:-25px;height:22px;'>" +
                     "<input class='enable-check' id='check-" + key +"' type='checkbox' " + enabled + " onclick=\"if ('" + key + "' == window.ext.gpgauth_prefs.default_key.get()){" +
-                    " $(this).next()[0].className += ' ui-state-active'; return false }; (this.checked) ? window.ext.gpgauth_prefs.enabled_keys.add('" + key + "') : " +
+                    " $(this).next().addClass('ui-state-active'); return false }; if (this.checked && !window.ext.gpgauth_prefs.default_key.get()) { $(this).next().next().click(); $(this).next().next().next().addClass('ui-state-active'); } (this.checked) ? window.ext.gpgauth_prefs.enabled_keys.add('" + key + "') : " +
                     "window.ext.gpgauth_prefs.enabled_keys.remove('" + key + "'); (this.checked) ? $(this).button('option', 'label', 'Enabled') : $(this).button('option', " +
                     "'label', 'Disabled');\"/\><label for='check-" + key + "' style='z-index:100;'>" + status_text + "</label><input class='default-check' type='radio' name='default_key' " +
                     " id='default-" + key + "' " + default_key + "/\><label class='default-check' style='z-index: 0; margin-left: 0px;' for='default-" + key + "'>Set as default</label></span></h3>";

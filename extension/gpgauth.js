@@ -1,6 +1,6 @@
 /* Constants */
 GPGAUTH_VERSION = "v1.3.0";
-CLIENT_VERSION = "v1.0.4";
+CLIENT_VERSION = "v1.0.411";
 
 // HTTP Headers
 SERVER_GPGAUTH_VERSION = 'X-GPGAuth-Version'        /* HTTP Header that reports the gpgAuth server implementation version

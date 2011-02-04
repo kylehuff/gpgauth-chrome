@@ -76,6 +76,7 @@ body{
     background:#fff;
     display:inline-block;
     padding:8px;
+    cursor:pointer;
     -moz-border-radius: 4px;
     -webkit-border-radius: 4px;
     -moz-box-shadow:#666 2px 2px 2px;
@@ -107,9 +108,9 @@ body{
     color:gray;
 }
 
-<!--#trust-list .level:hover {-->
-<!--    font-weight:bold;-->
-<!--}-->
+#trust-list .level:hover {
+    font-weight:bold;
+}
 
 #trust-level-desc {
     color: #000;
@@ -129,9 +130,9 @@ body{
     width: 600px;
 }
 
-<!--.trust-level-desc:hover {-->
-<!--    background-color: #1C1;-->
-<!--}-->
+.trust-level-desc-sel:hover {
+    background-color: #1C1;
+}
 
 #trust-level-desc .selected {
     background-color: #F58400;
@@ -308,7 +309,7 @@ body{
                 <p>Welcome to the gpgAuth configuration helper - this will walk you through the items that need configuration before you can begin using gpgAuth.</p>
                 <p>Please review the list of requirements below and ensure your system is setup/configured to use gpgAuth authentication.</p>
                 <div style="width:100%; float:left;text-align: center;">
-                    <div id="status_result" class="trust-level-sel" style="min-width: 600px; text-align:left;">
+                    <div id="status_result" class="trust-level-sel" style="min-width: 600px; text-align:left; cursor:default;">
                         <div class="trust-level-desc" id='system-good'>
                             <span class="system-check" style="margin-right:8px;"><img src='images/check.png'></span>
                             <span class="trust-desc" style="font-size:16px;">Your system appears to be configured correctly, you should be able to use gpgAuth authentication</span>
@@ -329,46 +330,48 @@ body{
         <div id="step-2" style="text-align: center;">
             <div class="ui-accordion-left"></div>
             <div class="bound-box">
-                <p>Select a trust level:</p>
+                <p>Select a trust level:<br/>
+                    (0 is the best, and is the value you want in most cases)
+                </p>
                 <div style="width:100%; float:left;text-align: center;">
                 <div class="trust-level-sel" id="trust-level-sel" style="min-width: 600px;">
                     <span id="trust-header">
                         gpgAuth Minimum Trust Level
                     </span><br/><br/>
                     <div id="trust-level-desc">
-                        <div class="trust-level-desc" id='trust-0'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-0'>
                             <span class="trust-level">0</span>
                             <span class="trust-desc">The UID matching the domain must be signed by one of your ultimately trusted keys (this is the most stringent/secure)</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-1'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-1'>
                             <span class="trust-level">1</span>
                             <span class="trust-desc">The UID matching the domain must be signed by one of your ultimately trusted keys - it is okay if that key is expired</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-2'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-2'>
                             <span class="trust-level">2</span>
                             <span class="trust-desc">The UID matching the domain may be signed by one of your keys that has only a Full or Marginal trust</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-3'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-3'>
                             <span class="trust-level">3</span>
                             <span class="trust-desc">The UID matching the domain may be signed by one of your keys that has only a Full or Marginal trust - it is okay if that key has expired</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-4'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-4'>
                             <span class="trust-level">4</span>
                             <span class="trust-desc">The Primary UID matching the domain may be signed by one of your ultimately trusted keys</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-5'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-5'>
                             <span class="trust-level">5</span>
                             <span class="trust-desc">The Primary UID matching the domain may be signed by one of your ultimately trusted keys that has expired</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-6'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-6'>
                             <span class="trust-level">6</span>
                             <span class="trust-desc">The Primary UID matching the domain may be signed by one of your keys that has only a Full or Marginal Trust</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-7'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-7'>
                             <span class="trust-level">7</span>
                             <span class="trust-desc">The Primary UID matching the domain may be signed by one of your keys that has only a Full or Marginal Trust that has expired</span>
                         </div>
-                        <div class="trust-level-desc" id='trust-8'>
+                        <div class="trust-level-desc trust-level-desc-sel" id='trust-8'>
                             <span class="trust-level">8</span>
                             <span class="trust-desc">The Primary UID matching the domain may not be signed but otherwise meets the web of trust
                                 requirements (i.e.: signed by a key that you fully trust)</span>
