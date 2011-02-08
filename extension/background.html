@@ -500,8 +500,11 @@ var gpgauthBackground = {
             this.gpg_elements[domain]['server_validated'] = false;
         }
         this.gpg_elements[domain]['cached'] = false;
-
-        key_results = gpgauthBackground.verifyDomainKey(domain, domain_keylist);
+        key_results_length = 0;
+        for (key in domain_keylist) {
+            key_results_length = 1; break;
+        }
+        key_results = key_results_length > 0 ? gpgauthBackground.verifyDomainKey(domain, domain_keylist) : {};
         // If the domain_key_trust has changed, don't use cached server validation
         if (parseInt(key_results['domain_key_trust']) < 0 || key_results['domain_key_trust'] == null
             || key_results['domain_key_trust'] > parseInt(gpgauth_prefs.trust_level.get())
@@ -513,11 +516,7 @@ var gpgauthBackground = {
 
         if (!this.gpg_elements[domain]['server_validated'] == true) {
             this.gpg_elements[domain]['server_verify_url'] = server_verify_url;
-            key_results_length = 0;
-            for (key in domain_keylist) {
-                key_results_length = 1; break;
-            }
-            key_results = key_results_length > 0 ? gpgauthBackground.verifyDomainKey(domain, domain_keylist) : {};
+            //key_results = key_results_length > 0 ? gpgauthBackground.verifyDomainKey(domain, domain_keylist) : {};
             //verify the result here, consult preferences for minimum trust level
             this.gpg_elements[domain]['domain_key'] = key_results['domain_key'];
             this.gpg_elements[domain]['domain_key_trust'] = key_results['domain_key_trust'];
