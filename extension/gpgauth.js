@@ -58,12 +58,13 @@ var gpgAuth = {
                requirements */
             var request = new XMLHttpRequest();
             var response_headers = null;
-
             request.open("HEAD", document.URL, false);
             request.setRequestHeader('X-User-Agent', 'gpgauth-discovery-chrome/' + CLIENT_VERSION);
             request.send(null);
+
             /* Make the request */
             response_headers = request.getAllResponseHeaders();
+
             /* Create an object to store any gpgAuth specific headers returned from the server. */
             this.gpgauth_headers = gpgAuth.getHeaders(response_headers);
             this.gpg_elements[document.domain]['headers'] = this.gpgauth_headers;
@@ -71,7 +72,7 @@ var gpgAuth = {
         }
 
         /* if gpgAuth headers were found, send a message to background.html
-            to have it init the plugin */
+            to have it show the browser action icon, and verify the server. */
         if (this.gpgauth_headers.length) {
             chrome.extension.sendRequest({msg: 'show', 'params': { 'domain': document.domain, 'headers': this.gpgauth_headers }}, function(response) {});
             if (this.gpgauth_headers[SERVER_VERIFICATION_URL] != 'invalid') {
@@ -87,12 +88,11 @@ var gpgAuth = {
     },
 
     serverResult: function(response) {
-        if (!response.result['valid']) {
+        if (!response.result['server_validated']) {
             console.log(response);
         }
         if (response.result['server_validated'] == true || response.result['valid'] == 'override') {
             if (this.gpgauth_headers['X-GPGAuth-Requested'] == 'true' || response.result['valid'] == 'override') {
-
                 chrome.extension.sendRequest({msg: 'doUserLogin', params: {'domain': document.domain, 
                         'service_login_url': this.gpgauth_headers[SERVICE_LOGIN_URL] }},
                         function(response) { gpgAuth.login(response) });
@@ -155,7 +155,7 @@ var gpgAuth = {
                         gpgauth_headers[is_match[1]] = 'invalid';
                         break;
                     } else {
-                        is_match[2] = document.location.origin + is_match[2];
+                        is_match[2] = document.location.protocol + "//" + document.location.host + is_match[2];
                     }
                 }
                 gpgauth_headers[is_match[1]] = is_match[2];

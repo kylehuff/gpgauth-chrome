@@ -190,6 +190,8 @@ var gpgauthBackground = {
                     response['errorno'] = 1;
                     response['error'] = 'Server key not found';
                     dialog = 'dialogs/popup_error.html';
+                    // Set to success.html if the user used the login override and authenticated
+                    //  despite the missing server key.
                     if (user_authenticated) {
                         dialog = 'dialogs/success.html';
                     }
@@ -493,36 +495,56 @@ var gpgauthBackground = {
         if (!this.gpg_elements[domain]) {
             this.gpg_elements[domain] = {};
         }
-        this.gpg_elements[domain]['server_verify_url'] = server_verify_url;
-        key_results_length = 0;
-        for (key in domain_keylist) {
-            key_results_length = 1; break;
+        // The trust configuration has changed for this domain, don't use cached server validation
+        if (this.gpg_elements[domain]['trust_level'] != parseInt(gpgauth_prefs.trust_level.get())) {
+            this.gpg_elements[domain]['server_validated'] = false;
         }
-        key_results = key_results_length > 0 ? gpgauthBackground.verifyDomainKey(domain, domain_keylist) : {};
-        //verify the result here, consult preferences for minimum trust level
-        this.gpg_elements[domain]['domain_key'] = key_results['domain_key'];
-        this.gpg_elements[domain]['domain_key_trust'] = key_results['domain_key_trust'];
-        this.gpg_elements[domain]['user_key'] = key_results['user_key'];
-        this.gpg_elements[domain]['trust_level'] = parseInt(gpgauth_prefs.trust_level.get())
+        this.gpg_elements[domain]['cached'] = false;
+
+        key_results = gpgauthBackground.verifyDomainKey(domain, domain_keylist);
+        // If the domain_key_trust has changed, don't use cached server validation
         if (parseInt(key_results['domain_key_trust']) < 0 || key_results['domain_key_trust'] == null
-            || key_results['domain_key_trust'] > parseInt(gpgauth_prefs.trust_level.get())) {
+            || key_results['domain_key_trust'] > parseInt(gpgauth_prefs.trust_level.get())
+            || this.gpg_elements[domain]['trust_level'] != parseInt(gpgauth_prefs.trust_level.get())) {
             this.gpg_elements[domain]['server_validated'] = false;
-            return this.gpg_elements[domain];
-        } else {
-            console.log ("keyresult was " + key_results['domain_key_trust'] );
-            var token = this.generate_random_token();
-            this.gpg_elements[domain]['token_for_server'] = token;
-            var enc_result = plugin.gpgEncrypt(token, key_results['domain_key'], '', '');
-            if (enc_result['error']) {
-                encrypted_token = {'valid': false, 'errorno': enc_result['gpgme_err_code'], 'error': enc_result['error_string']};
-            } else {
-                encrypted_token = enc_result['data'];
-            }
-            console.log(encrypted_token);
-            this.gpg_elements[domain]['server_validated'] = false;
-            var server_response = gpgauthBackground.doServerTokenTests(domain, encrypted_token);
-            return this.gpg_elements[domain];
+            console.log("Not using cached...");
         }
+        this.gpg_elements[domain]['cached'] = false;
+
+        if (!this.gpg_elements[domain]['server_validated'] == true) {
+            this.gpg_elements[domain]['server_verify_url'] = server_verify_url;
+            key_results_length = 0;
+            for (key in domain_keylist) {
+                key_results_length = 1; break;
+            }
+            key_results = key_results_length > 0 ? gpgauthBackground.verifyDomainKey(domain, domain_keylist) : {};
+            //verify the result here, consult preferences for minimum trust level
+            this.gpg_elements[domain]['domain_key'] = key_results['domain_key'];
+            this.gpg_elements[domain]['domain_key_trust'] = key_results['domain_key_trust'];
+            //this.gpg_elements[domain]['user_key'] = key_results['user_key'];
+            this.gpg_elements[domain]['trust_level'] = parseInt(gpgauth_prefs.trust_level.get())
+            if (parseInt(key_results['domain_key_trust']) < 0 || key_results['domain_key_trust'] == null
+                || key_results['domain_key_trust'] > parseInt(gpgauth_prefs.trust_level.get())) {
+                this.gpg_elements[domain]['server_validated'] = false;
+            } else {
+                console.log ("keyresult was " + key_results['domain_key_trust'] );
+                console.log("THIS I STHE SLKFJ: ", this.gpg_elements[domain]['server_validated']);
+                var token = this.generate_random_token();
+                this.gpg_elements[domain]['token_for_server'] = token;
+                var enc_result = plugin.gpgEncrypt(token, key_results['domain_key'], '', '');
+                if (enc_result['error']) {
+                    encrypted_token = {'valid': false, 'errorno': enc_result['gpgme_err_code'], 'error': enc_result['error_string']};
+                } else {
+                    encrypted_token = enc_result['data'];
+                }
+                console.log(encrypted_token);
+                this.gpg_elements[domain]['server_validated'] = false;
+                var server_response = gpgauthBackground.doServerTokenTests(domain, encrypted_token);
+            }
+        } else {
+            this.gpg_elements[domain]['cached'] = true;
+        }
+        return this.gpg_elements[domain];
     },
 
 
