@@ -1,8 +1,10 @@
-This folder contains the chrome extension - in the directory './plugins/' the platform specific NPAPI binary object are stored.
+This folder contains the source for the gpgAuth chrome/chromium extension.
 
-add extension to chrome/chromium
+The google webstore URL for the packaged extension is here: https://chrome.google.com/webstore/detail/pinhikmcljjkhnpjmpfkhjgiaacajajm
 
-To test the extension, after installing navigate to http://gpgauth.org/tests/head_test.php
+The directory './plugins/' contains the platform specific NPAPI binary objects that are compiled from the gpgauth-npapi project: https://github.com/gpgauth/gpgauth-npapi
 
-To execute functions, go to chrome://extension, enable "Developer Mode" and click on the link "Inspect active views: background.html", after the element inspector pops up, go to the "Console" tab and execute public methods via `plugin.METHOD()`, i.e. "plugin.getKeyList()"
+To test the extension, after installing navigate to http://gpgauth.org/tests/head_test.php or the fancier version here: http://gpgauth.org/demo/
+
+To execute functions for testing, go to chrome://extension, enable "Developer Mode" and click on the link "Inspect active views: background.html", after the element inspector pops up, go to the "Console" tab and execute public methods via `plugin.METHOD()`, i.e. "plugin.getKeyList()"
 
