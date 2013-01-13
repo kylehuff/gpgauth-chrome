@@ -1,38 +1,44 @@
 {
-  "name": "gpgAuth web client",
-  "version": "1.1.18",
-  "description": "The offical gpgAuth web client extention for Google Chrome and Chromium",
-  "background_page": "background.html",
-  "icons": {
-      "128": "images/gpgauth-128.png",
-      "16": "images/gpgauth-16.png",
-      "32": "images/gpgauth-32.png",
-      "48": "images/gpgauth-48.png",
-      "64": "images/gpgauth-64.png"
-   },
-  "permissions": [
-       "tabs",
-       "http://*/*",
-       "https://*/*",
-       "notifications"
-  ],
-  "content_scripts": [
-    {
-      "matches": [ "http://*/*", "https://*/*" ],
-      "js": ["gpgauth.js"],
-      "run_at": "document_start"
-    }
-  ],
-  "options_page": "options.html",
-  "page_action": {
-    "default_icon": "images/badges/default.png",
-    "default_title": "gpgAuth Enabled website",
-    "default_popup": "dialogs/enabled.html"
-  },
-  "plugins": [
-    { "path": "plugins/Darwin_x86-gcc3/npgpgAuth-v1.0.3b.plugin", "public": false },
-    { "path": "plugins/Linux_x86-gcc3/npgpgAuth-v1.0.3b.so", "public": false },
-    { "path": "plugins/Linux_x86_64-gcc3/npgpgAuth-v1.0.3b.so", "public": false },
-    { "path": "plugins/WINNT_x86-msvc/npgpgAuth-v1.0.3b.dll", "public": false }
-  ]
+    "name": "gpgAuth web client",
+    "version": "1.1.18",
+    "description": "The offical gpgAuth web client extention for Google Chrome and Chromium",
+    "manifest_version": 2,
+    "content_security_policy": "script-src 'self'; object-src 'self'",
+    "background": {
+      "scripts": [
+        "background.js"
+      ],
+      "persistent": true
+    },
+    "icons": {
+        "128": "images/gpgauth-128.png",
+        "16": "images/gpgauth-16.png",
+        "32": "images/gpgauth-32.png",
+        "48": "images/gpgauth-48.png",
+        "64": "images/gpgauth-64.png"
+    },
+    "content_scripts": [{
+        "matches": ["<all_urls>"],
+        "js": [
+            "gpgauth.js"
+        ],
+        "run_at": "document_start"
+    }],
+    "permissions": [
+        "<all_urls>",
+        "tabs",
+        "notifications"
+    ],
+    "options_page": "options.html",
+    "page_action": {
+        "default_icon": "images/badges/default.png",
+        "default_title": "gpgAuth Enabled website",
+        "default_popup": "dialogs/enabled.html"
+    },
+    "plugins": [
+        { "path": "plugins/Darwin_x86-gcc/npwebpgPlugin-v0.6.3.plugin", "public": false },
+        { "path": "plugins/Linux_x86_64-gcc/npwebpgPlugin-v0.6.3.so", "public": false },
+        { "path": "plugins/Linux_x86-gcc/npwebpgPlugin-v0.6.3.so", "public": false },
+        { "path": "plugins/WINNT_x86-msvc/npwebpgPlugin-v0.6.3.dll", "public": false }
+    ]
 }

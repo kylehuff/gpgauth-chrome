@@ -1,6 +1,9 @@
+/* <![CDATA[ */
+if (typeof(gpgauth)=='undefined') { gpgauth = {}; }
+
 /* Constants */
 GPGAUTH_VERSION = "v1.3.0";
-CLIENT_VERSION = "v1.0.411";
+CLIENT_VERSION = "v1.1.0";
 
 // HTTP Headers
 SERVER_GPGAUTH_VERSION = 'X-GPGAuth-Version'        /* HTTP Header that reports the gpgAuth server implementation version
@@ -19,10 +22,10 @@ LOGOUT_URL = 'X-GPGAuth-Logout-URL'                    /* URL to perform logout 
 
 
 /*
-   Class: gpgAuth
-   This class implements gpgAuth
+   Class: gpgauth.client
+   This class implements gpgAuth client protocol
 */
-var gpgAuth = {
+gpgauth.client = {
 
     /*
     Function: onLoad
@@ -34,7 +37,12 @@ var gpgAuth = {
         if (!this.gpg_elements) {
             this.gpg_elements = {};
         }
-        chrome.extension.sendRequest({msg: 'enabled'}, function(response) { gpgAuth.init(response); });
+        // Setup a listener for incomming headers
+        chrome.extension.sendRequest({msg: 'enabled'}, function(response) { gpgauth.client.init(response); });
+    },
+
+    _onRequest: function(request, sender, sendResponse) {
+        console.log(request);
     },
 
     init: function(response) {
@@ -59,14 +67,17 @@ var gpgAuth = {
             var request = new XMLHttpRequest();
             var response_headers = null;
             request.open("HEAD", document.URL, false);
+            request.setRequestHeader('Accept', "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            request.setRequestHeader("Content-type", "text/plain");
             request.setRequestHeader('X-User-Agent', 'gpgauth-discovery-chrome/' + CLIENT_VERSION);
-            request.send(null);
+            request.send();
 
             /* Make the request */
             response_headers = request.getAllResponseHeaders();
+            if (this.debug) console.log(response_headers);
 
             /* Create an object to store any gpgAuth specific headers returned from the server. */
-            this.gpgauth_headers = gpgAuth.getHeaders(response_headers);
+            this.gpgauth_headers = gpgauth.client.getHeaders(response_headers);
             this.gpg_elements[document.domain]['headers'] = this.gpgauth_headers;
             this.gpg_elements[document.domain]['headers_checked'] = true;
         }
@@ -80,7 +91,7 @@ var gpgAuth = {
                 chrome.extension.sendRequest({msg: 'doServerTests', params: {'domain': document.domain, 
                     'server_verify_url': this.gpgauth_headers[SERVER_VERIFICATION_URL],
                     'headers': this.gpgauth_headers }}, 
-                    function(response) { gpgAuth.serverResult(response) });
+                    function(response) { gpgauth.client.serverResult(response) });
             }
         } // else listen for an event here
 
@@ -89,13 +100,13 @@ var gpgAuth = {
 
     serverResult: function(response) {
         if (!response.result['server_validated']) {
-            console.log(response);
+            if (this.debug) console.log(response);
         }
         if (response.result['server_validated'] == true || response.result['valid'] == 'override') {
             if (this.gpgauth_headers['X-GPGAuth-Requested'] == 'true' || response.result['valid'] == 'override') {
                 chrome.extension.sendRequest({msg: 'doUserLogin', params: {'domain': document.domain, 
                         'service_login_url': this.gpgauth_headers[SERVICE_LOGIN_URL] }},
-                        function(response) { gpgAuth.login(response) });
+                        function(response) { gpgauth.client.login(response) });
             }
         }
     },
@@ -111,23 +122,23 @@ var gpgAuth = {
             http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
             http.send(params);
             if(http.readyState == 4 && http.status == 200) {
-                this.gpgauth_headers = gpgAuth.getHeaders(http.getAllResponseHeaders());
+                this.gpgauth_headers = gpgauth.client.getHeaders(http.getAllResponseHeaders());
                 chrome.extension.sendRequest({msg: this.gpgauth_headers['X-GPGAuth-Progress'],
                     params: {'domain':document.domain,
                             'service_login_url': this.gpgauth_headers[SERVICE_LOGIN_URL],
                             'headers': this.gpgauth_headers,
                             'result' : response.result}
                 });
-                gpgAuth.handleRefer(response, this.gpgauth_headers);
+                gpgauth.client.handleRefer(response, this.gpgauth_headers);
             } else {
-                console.log(http.getAllResponseHeaders());
-                console.log("Status: " + http.status + "<br>Resposne:<br>" + http.responseText);
+                if (this.debug) console.log(http.getAllResponseHeaders());
+                if (this.debug) console.log("Status: " + http.status + "<br>Resposne:<br>" + http.responseText);
             }
         }
     },
     
     handleRefer: function(response, headers, domain) {
-        console.log("asked to proceed to page:", response);
+        if (this.debug) console.log("asked to proceed to page:", response);
         next = headers['X-GPGAuth-Refer'];
         if (next && next[0] == "/") {
             window.location = next;
@@ -170,12 +181,13 @@ var gpgAuth = {
     This function unloads then event listener when the window/tab is closed.
     */
     listenerUnload: function( event ) {
-        gpgAuth.initialized = false;
-        gpgAuth.status_window.update( "gpgAuth shutting down....", show=false );
+        gpgauth.client.initialized = false;
+        gpgauth.client.status_window.update( "gpgAuth shutting down....", show=false );
         window.removeEventListener( "gpg_auth:login");
     },
 
 };
 
 
-gpgAuth.onLoad();
+gpgauth.client.onLoad();
+/* ]]> */
