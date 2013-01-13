@@ -22,124 +22,87 @@ var domain_trust_detail = {
         '8': "The domain key was not signed, but meets web of trust requirements (i.e.: signed by a key that the user trusts and has signed, as defined by the user preference of &quot;advnaced.trust_model&quot;)",
 }
 
-/* setup the preferences object
-    this is probably overkill for chrome/chromium, but added as generic object
-        for use in extensions for other browsers.
-*/
-var gpgauth_prefs = {
-    gpgauth_enabled: {
-        get: function() {
-            return window.localStorage.getItem('enabled');
-        },
-        set: function(value) {
-            window.localStorage.setItem('enabled', value);
-        },
-    },
-    trust_level: {
-        get: function() {
-            level = window.localStorage.getItem('trust_level');
-            if (parseInt(level)){
-                return level;
-            } else {
-                return "0";
-            }
-        },
-        set: function(level) {
-            if (!isNaN(parseInt(level))) {
-                window.localStorage.setItem('trust_level', level);
-            }
-        },
-    },
-    enabled_keys: {
-        get: function() {
-            keys_arr = [];
-            if (window.localStorage.getItem('enabled_keys')) {
-                keys_arr = window.localStorage.getItem('enabled_keys').split(',');
-            }
-            return keys_arr;
-        },
-        add: function(keyid) {
-            keys_arr = this.get();
-            keys_arr.push(keyid);
-            window.localStorage.setItem('enabled_keys', keys_arr);
-        },
-        remove: function(keyid) {
-            keys_tmp = this.get();
-            keys_arr = [];
-            for (key in keys_tmp) {
-                if (keys_tmp[key] != keyid) {
-                    keys_arr.push(keys_tmp[key]);
-                }
-            }
-            window.localStorage.setItem('enabled_keys', keys_arr);
-        },
-        clear: function(){
-            window.localStorage.setItem('enabled_keys', '');
-        },
-        length: function(){
-            keys_tmp = [];
-            if (window.localStorage.getItem('enabled_keys')) {
-                store_value = window.localStorage.getItem('enabled_keys').split(',');
-                for (key in store_value) {
-                    keys_tmp.push(store_value[key]);
-                }
-            }
-            return keys_tmp.length + 1;
-        },
-        has: function(keyid){
-            key_arr = this.get();
-            for (var i = 0; i < this.length(); i++) {
-                if (key_arr[i] == keyid)
-                    return true;
-            }
-            return false;
-        },
-    },
-    default_key: {
-        get: function() {
-            return window.localStorage.getItem('default_key');
-        },
-        set: function(keyid) {
-            //window.localStorage.clear('default_key');
-            return window.localStorage.setItem('default_key', keyid);
-        },
-        clear: function(keyid) {
-            return window.localStorage.clear('default_key');
-        },
-    },
-};
-/* end prefs setup */
-
 gpgauth.background = {
 
     init: function() {
+        var _ = gpgauth.utils.i18n.gettext;
+        var gnupghome = (gpgauth.preferences.gnupghome.get() != -1 &&
+            gpgauth.preferences.gnupghome.get()) ? gpgauth.preferences.gnupghome.get() : "";
+
         if (!localStorage.config_complete) {
             // The configuration druid has not run, we need to start it.
             chrome.tabs.create({url: chrome.extension.getURL('druid.html')});
         }
 
         // information and source code for the plugin can be found here:
-        //      http://gpgauth.org/projects/gpgauth-npapi/
-
-        plugin = document.createElement('embed');
-        plugin.id = 'plugin';
-        plugin.type = 'application/x-webpg';
-        document.body.appendChild(plugin);
-        plugin.addEventListener("keygenprogress", gpgauth.background.gpgGenKeyProgress, false);
-        plugin.addEventListener("keygencomplete", gpgauth.background.gpgGenKeyComplete, false);
-        var result = plugin.valid;
-        console.log("my plugin returned: " + result);
-        /* Check to make sure all of the enabled_keys are private keys 
-            this would occur if the key was enabled and then the secret key was deleted. */
-        secret_keys = plugin.getPrivateKeyList();
-        enabled_keys = gpgauth_prefs.enabled_keys.get();
-        for (key in enabled_keys){
-            if (enabled_keys[key] in secret_keys == false){
-                gpgauth_prefs.enabled_keys.remove(key);
-            }
+        //      https://github.com/kylehuff/webpg-npapi
+        if (navigator.userAgent.toLowerCase().search("chrome") > -1) {
+            // if the plugin is already present, remove it from the DOM
+            if (document.getElementById("webpgPlugin"))
+                document.body.removeChild(document.getElementById("webpgPlugin"));
+            var embed = document.createElement("embed");
+            embed.id = "webpgPlugin";
+            embed.type = "application/x-webpg";
+            document.body.appendChild(embed);
         }
 
-        console.log("background initted");
+        gpgauth.plugin = document.getElementById("webpgPlugin");
+        console.log("WebPG NPAPI Plugin valid: " + gpgauth.plugin.valid + "; version " + gpgauth.plugin.version);
+
+        // Set the users preferred option for the GnuPG binary
+        if (gpgauth.plugin.valid) {
+            var gnupgbin = gpgauth.preferences.gnupgbin.get();
+            if (gnupgbin.length > 1) {
+                gpgauth.plugin.gpgSetBinary(gnupgbin);
+                console.log("Setting GnuPG binary to user value: '" + gnupgbin + "'");
+            }
+            var gpgconf = gpgauth.preferences.gpgconf.get();
+            if (gpgconf.length > 1) {
+                gpgauth.plugin.gpgSetGPGConf(gpgconf);
+                console.log("Setting GPGCONF binary to user value: '" + gpgconf + "'");
+            }
+        }
+        
+        if (gpgauth.plugin.valid && !gpgauth.plugin.webpg_status["error"]) {
+            if (gnupghome.length > 0)
+                console.log("Setting GnuPG home directory to user value: '" + gnupghome + "'");
+            if (gpgauth.plugin.webpg_status.openpgp_valid)
+                console.log("Protocol OpenPGP is valid; v" + gpgauth.plugin.webpg_status.OpenPGP.version);
+            if (gpgauth.plugin.webpg_status.gpgconf_detected)
+                console.log("Protocol GPGCONF is valid; v" + gpgauth.plugin.webpg_status.GPGCONF.version); 
+            gpgauth.plugin.gpgSetHomeDir(gnupghome);
+            gpgauth.plugin.addEventListener("keygenprogress", gpgauth.background.gpgGenKeyProgress, false);
+            gpgauth.plugin.addEventListener("keygencomplete", gpgauth.background.gpgGenKeyComplete, false);
+
+            /* Check to make sure all of the enabled_keys are private keys 
+                this would occur if the key was enabled and then the secret key was deleted. */
+            gpgauth.secret_keys = gpgauth.plugin.getPrivateKeyList();
+            gpgauth.enabled_keys = gpgauth.preferences.enabled_keys.get();
+            var secret_keys = gpgauth.secret_keys;
+            var enabled_keys = gpgauth.enabled_keys;
+            for (var key in enabled_keys){
+                if (enabled_keys[key] in secret_keys == false){
+                   gpgauth.preferences.enabled_keys.remove(enabled_keys[key]);
+                }
+            }
+            console.log("gpgAuth background initialized");
+        } else {
+            if (gpgauth.plugin.valid == undefined) {
+                gpgauth.plugin.webpg_status = {
+                    "error": true,
+                    "gpg_error_code": -1,
+                    "error_string": _("WebPG Plugin failed to load"),
+                    "file": "webpgPluginAPI.cpp",
+                    "line": -1,
+                }
+            }
+            // Hide the plugin element or it will FUBAR the content window
+            //  on firefox.
+            if (gpgauth.utils.detectedBrowser["vendor"] == "mozilla")
+                document.getElementById("webpgPlugin").style.display = "none";
+            gpgauth.utils.openNewTab(gpgauth.utils.resourcePath + "error.html");
+        }
+
     },
 
 
@@ -171,7 +134,7 @@ gpgauth.background = {
             if (!gpgauth.background.gpg_elements[request.params['domain']]) {
                 gpgauth.background.gpg_elements[request.params['domain']] = {};
             }
-            var domain_keylist = plugin.getDomainKey(request.params['domain']);
+            var domain_keylist = gpgauth.plugin.getDomainKey(request.params['domain']);
             var domain_key = null;
             // Iterate through the returned domain_keylist to ensure it is not an empty object
             for (var key in domain_keylist) { domain_key = key; break; }
@@ -255,7 +218,7 @@ gpgauth.background = {
             }
         }
         if (request.msg == 'enabled') {
-            response = {'enabled': gpgauth_prefs.gpgauth_enabled.get() };
+            response = {'enabled': gpgauth.preferences.gpgauth_enabled.get() };
         }
         if (request.msg == 'getPopupError') {
             parsed_url = gpgauth.background.parseUrl(request.tab.url);
@@ -287,7 +250,7 @@ gpgauth.background = {
         }
         if (request.msg == 'async-gpgGenKey') {
             console.log("async-gpgGenKey requested");
-            var result = plugin.gpgGenKey(
+            var result = gpgauth.plugin.gpgGenKey(
                     request.data['publicKey_algo'],
                     request.data['publicKey_size'],
                     request.data['subKey_algo'],
@@ -340,7 +303,7 @@ gpgauth.background = {
                 if(http.readyState == 4 && http.status == 200) {
                     validity = true;
                     msg = http.responseText;
-                    msg = plugin.gpgImportKey(msg);
+                    msg = gpgauth.plugin.gpgImportKey(msg);
                     //console.log(http.responseText);
                 } else {
                     validity = false;
@@ -387,7 +350,7 @@ gpgauth.background = {
         var response_headers = null;
         var server_response = null;
         var http = new XMLHttpRequest();
-        var keyid = gpgauth_prefs.default_key.get();
+        var keyid = gpgauth.preferences.default_key.get();
         var params = "gpg_auth:keyid=" + encodeURIComponent(keyid);
         http.open("POST", login_url, false);
         http.setRequestHeader('X-User-Agent', 'gpgauth ' + CLIENT_VERSION + '/chrome');
@@ -420,7 +383,7 @@ gpgauth.background = {
         }
 
         cipher = unescape(server_response).replace(/\\\+/g, ' ').replace(/\\./g, '.');
-        plaintext = plugin.gpgDecrypt(cipher)
+        plaintext = gpgauth.plugin.gpgDecrypt(cipher)
         if (this.debug) console.log('plaintext: ', plaintext);
 
         var random_re = new RegExp("^gpgauth(([v][0-9][.][0-9]{1,2})([.][0-9]{1,3}))[\|]([0-9]+)[\|]([a-z0-9]+)[\|]gpgauth(([v][0-9][.][0-9]{1,2})([.][0-9]{1,3}))$", "i");
@@ -448,12 +411,12 @@ gpgauth.background = {
     */
     verifyDomainKey: function(domain, domain_keylist){
         // first get a list of selected private keys for the user -
-        var private_keylist = gpgauth_prefs.enabled_keys.get();
+        var private_keylist = gpgauth.preferences.enabled_keys.get();
         if(!private_keylist) {
             private_keylist = {};
         }
 
-        var keylist = plugin.getPublicKeyList();
+        var keylist = gpgauth.plugin.getPublicKeyList();
         if (!keylist) {
             keylist = {};
         }
@@ -478,7 +441,7 @@ gpgauth.background = {
             }
             for (var privateKeyId in private_keylist) {
                 if (!private_keylist[privateKeyId].keystatus){
-                    var GAUTrust = plugin.verifyDomainKey(keylist[domain_key].uids[uid].uid, domain_key, uid, private_keylist[privateKeyId]);
+                    var GAUTrust = gpgauth.plugin.verifyDomainKey(keylist[domain_key].uids[uid].uid, domain_key, uid, private_keylist[privateKeyId]);
                     usable_domain_keyid = domain_key;
                     usable_private_keyid = privateKeyId;
                     usable_domain_key_trust = GAUTrust;
@@ -497,7 +460,7 @@ gpgauth.background = {
             this.gpg_elements[domain] = {};
         }
         // The trust configuration has changed for this domain, don't use cached server validation
-        if (this.gpg_elements[domain]['trust_level'] != parseInt(gpgauth_prefs.trust_level.get())) {
+        if (this.gpg_elements[domain]['trust_level'] != parseInt(gpgauth.preferences.trust_level.get())) {
             this.gpg_elements[domain]['server_validated'] = false;
         }
         this.gpg_elements[domain]['cached'] = false;
@@ -508,8 +471,8 @@ gpgauth.background = {
         key_results = key_results_length > 0 ? gpgauth.background.verifyDomainKey(domain, domain_keylist) : {};
         // If the domain_key_trust has changed, don't use cached server validation
         if (parseInt(key_results['domain_key_trust']) < 0 || key_results['domain_key_trust'] == null
-            || key_results['domain_key_trust'] > parseInt(gpgauth_prefs.trust_level.get())
-            || this.gpg_elements[domain]['trust_level'] != parseInt(gpgauth_prefs.trust_level.get())) {
+            || key_results['domain_key_trust'] > parseInt(gpgauth.preferences.trust_level.get())
+            || this.gpg_elements[domain]['trust_level'] != parseInt(gpgauth.preferences.trust_level.get())) {
             this.gpg_elements[domain]['server_validated'] = false;
             if (this.debug) console.log("Not using cached...");
         }
@@ -522,15 +485,15 @@ gpgauth.background = {
             this.gpg_elements[domain]['domain_key'] = key_results['domain_key'];
             this.gpg_elements[domain]['domain_key_trust'] = key_results['domain_key_trust'];
             //this.gpg_elements[domain]['user_key'] = key_results['user_key'];
-            this.gpg_elements[domain]['trust_level'] = parseInt(gpgauth_prefs.trust_level.get())
+            this.gpg_elements[domain]['trust_level'] = parseInt(gpgauth.preferences.trust_level.get())
             if (parseInt(key_results['domain_key_trust']) < 0 || key_results['domain_key_trust'] == null
-                || key_results['domain_key_trust'] > parseInt(gpgauth_prefs.trust_level.get())) {
+                || key_results['domain_key_trust'] > parseInt(gpgauth.preferences.trust_level.get())) {
                 this.gpg_elements[domain]['server_validated'] = false;
             } else {
                 if (this.debug) console.log("keyresult was " + key_results['domain_key_trust'] );
                 var token = this.generate_random_token();
                 this.gpg_elements[domain]['token_for_server'] = token;
-                var enc_result = plugin.gpgEncrypt(token, [key_results['domain_key']], 0);
+                var enc_result = gpgauth.plugin.gpgEncrypt(token, [key_results['domain_key']], 0);
                 if (enc_result['error']) {
                     encrypted_token = {'valid': false, 'errorno': enc_result['gpgme_err_code'], 'error': enc_result['error_string']};
                 } else {

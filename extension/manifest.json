@@ -1,11 +1,14 @@
 {
     "name": "gpgAuth web client",
-    "version": "1.1.18",
+    "version": "1.2.0",
     "description": "The offical gpgAuth web client extention for Google Chrome and Chromium",
     "manifest_version": 2,
     "content_security_policy": "script-src 'self'; object-src 'self'",
     "background": {
       "scripts": [
+        "constants.js",
+        "utils.js",
+        "preferences.js",
         "background.js"
       ],
       "persistent": true
