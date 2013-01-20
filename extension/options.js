@@ -1,10 +1,243 @@
 /* <![CDATA[ */
+if (typeof(gpgauth)=='undefined') { gpgauth = {}; }
+// Enforce jQuery.noConflict if not already performed
 if (typeof(jQuery)!='undefined') { var jq = jQuery.noConflict(true); }
 
+
 var ext = chrome.extension.getBackgroundPage();
+
+gpgauth.options = {
+    init: function(browserWindow) {
+        var _ = gpgauth.utils.i18n.gettext;
+        document.title = _("gpgAuth Options");
+        document.dir = (gpgauth.utils.isRTL() ? 'rtl' : 'ltr');
+        if (gpgauth.utils.detectedBrowser['vendor'] == "mozilla")
+            gpgauth.plugin = browserWindow.gpgauth.plugin;
+        else if (gpgauth.utils.detectedBrowser['product'] == "chrome")
+            gpgauth.plugin = chrome.extension.getBackgroundPage().gpgauth.plugin;
+
+        jq('#step-1').ready(function(){
+            doSystemCheck();
+        });
+
+        function doSystemCheck() {
+            var _ = gpgauth.utils.i18n.gettext;
+            if (gpgauth.utils.detectedBrowser['product'] == "chrome")
+                pf = window.clientInformation.platform.substr(0,3);
+            else
+                pf = navigator.oscpu.substr(0,3);
+            platform = "";
+            if (pf == "Win") {
+                platform = "-mswindows";
+            }
+            if (pf == "Mac") {
+                platform = "-macosx";
+            }
+            if (gpgauth.plugin && gpgauth.plugin.valid) {
+                webpg_status = gpgauth.plugin.webpg_status;
+                errors = {
+                    'NPAPI' : { 'error' : false, 'detail': _("The WebPG NPAPI Plugin is valid") + "; version " + gpgauth.plugin.version },
+                    'libgpgme' : { 'error' : false, 'detail' : _("libgpgme loaded successfully") + "; version " + webpg_status.gpgme_version },
+                    'gpg_agent' : { 'error' : false, 'detail' : _("It appears you have a key-agent configured") },
+                    'gpgconf' : { 'error' : false, 'detail' : _("gpgconf was detected") + "; " +  _("you can use the signature methods") },
+                };
+
+                if (!webpg_status.gpg_agent_info) {
+                    errors['gpg_agent'] = {
+                        'error': true,
+                        'detail': _("You do not appear to have a key-agent configured") + " " + _("A working key-agent is required"),
+                        'link' : "http://gpgauth.org/projects/gpgauth-chrome/gpgagent",
+                    }
+                }
+
+                if (!webpg_status.gpgconf_detected) {
+                    errors['gpgconf'] = {
+                        'error': true,
+                        'detail': _("gpgconf does not appear to be installed") + "; " + _("You will not be able to create signatures"),
+                        'link' : "http://gpgauth.org/projects/gpgauth-chrome/support-gpgconf",
+                    }
+                }
+
+            } else {
+                errors = {
+	            "NPAPI" : {
+                        'error': true,
+                        'detail': _("There was a problem loading the plugin") + "; " + _("the plugin might be incompatibly compiled for this architechture"),
+                        'link' : null,
+                    }
+                }
+                jq('#valid-options').hide();
+                console.log(errors['NPAPI']['detail']);
+            }
+            errors_found = false;
+            for (error in errors) {
+                if (errors[error]['error']) {
+                    document.getElementById('system-good').style.display = 'none';
+                    document.getElementById('system-error').style.display = 'block';
+                    errors_found = true;
+                }
+                extra_class = (errors[error]['error'] && error != 'gpgconf') ? ' error' : '';
+                extra_class = (errors[error]['error'] && error == 'gpgconf') ? ' warning' : extra_class;
+                item_result = jq("<div></div>", {
+                    'class': "trust-level-desc" + extra_class
+                }).append(jq("<span></span>", {
+                        'class': "system-check",
+                        'style': "margin-right: 8px"
+                    }).append(jq("<img/>", {
+                            'src': (errors[error]['error']) ?
+                                "skin/images/cancel.png" : "skin/images/check.png"
+                        })
+                    )
+                ).append(jq("<span></span>", {
+                        'class': "trust-desc",
+                        'html': (errors[error]['error'] && errors[error]['link']) ? 
+                            errors[error]['detail'] + " - <a href=\"" + errors[error]['link'] + platform + "/\" target=\"new\">" + _("click here for help resolving this issue") + "</a>" : errors[error]['detail']
+                    })
+                );
+                if (errors_found)
+                    jq('#status_result').append(item_result);
+            }
+            if (errors_found && (error == 'libgpgme' || error == 'NPAPI')) {
+                // Hide the options for invalid installations
+                jq('#valid-options').hide();
+            } else {
+                // Only display the inline check if this is not the app version of gpgauth-chrome.
+                // and don't show the "display inline" or "GMAIL integration"
+                //  options in Thunderbird
+                if (gpgauth.utils.detectedBrowser['product'] == "thunderbird") {
+                    jq('#enable-decorate-inline').hide();
+                    jq("#enable-gmail-integration").hide();
+                    jq("#gmail-action-sign").hide();
+                }
+
+                jq(".webpg-options-title").first().text(_("WebPG Options"));
+
+                jq("#advanced-options-link").text(_("Advanced Options"));
+
+                jq("#gnupg-path-select").find(".webpg-options-text").
+                    text(_("GnuPG home directory"));
+
+                jq("#gnupg-path-select").find("input:button").val(_("Save"))
+
+                jq("#gnupg-binary-select").find(".webpg-options-text").
+                    text(_("GnuPG binary") + " (i.e. /usr/bin/gpg)");
+
+                jq("#gnupg-binary-select").find("input:button").val(_("Save"));
+
+                jq("#gnupg-keyserver-select").find(".webpg-options-text").
+                    text(_("Keyserver") + " (i.e. hkp://subkeys.pgp.net)");
+
+                jq("#gnupg-keyserver-select").find("input:button").val(_("Save"));
+
+                jq("#system-good").find(".trust-desc").text(_("Your system appears to be configured correctly for gpgAuth"));
+
+                jq("#system-error").find(".trust-desc").text(_("There is a problem with your configuration"));
+
+                jq("#gnupg-path-save").button().click(function(e){
+                    gpgauth.preferences.gnupghome.set(jq("#gnupg-path-input")[0].value);
+                    jq(this).hide();
+                });
+
+                jq("#gnupg-path-input").each(function() {
+                    // Save current value of element
+                    jq(this).data('oldVal', jq(this).val());
+
+                    // Look for changes in the value
+                    jq(this).bind("change propertychange keyup input paste", function(event){
+                        // If value has changed...
+                        if (jq(this).data('oldVal') != jq(this).val()) {
+                            // Updated stored value
+                            jq(this).data('oldVal', jq(this).val());
+
+                            // Show save dialog
+                            if (jq(this).val() != gpgauth.preferences.gnupghome.get())
+                                jq("#gnupg-path-save").show();
+                            else
+                                jq("#gnupg-path-save").hide();
+                        }
+                    })
+                })[0].value = gpgauth.preferences.gnupghome.get();
+
+                jq("#gnupg-path-input")[0].dir = "ltr";
+
+                jq("#gnupg-binary-save").button().click(function(e){
+                    gpgauth.preferences.gnupgbin.set(jq("#gnupg-binary-input")[0].value);
+                    jq(this).hide();
+                });
+
+                jq("#gnupg-binary-input").each(function() {
+                    // Save current value of element
+                    jq(this).data('oldVal', jq(this).val());
+
+                    // Look for changes in the value
+                    jq(this).bind("change propertychange keyup input paste", function(event){
+                        // If value has changed...
+                        if (jq(this).data('oldVal') != jq(this).val()) {
+                            // Updated stored value
+                            jq(this).data('oldVal', jq(this).val());
+
+                            // Show save dialog
+                            if (jq(this).val() != gpgauth.preferences.gnupgbin.get())
+                                jq("#gnupg-binary-save").show();
+                            else
+                                jq("#gnupg-binary-save").hide();
+                        }
+                    })
+                })[0].value = gpgauth.preferences.gnupgbin.get();
+
+                jq("#gnupg-binary-input")[0].dir = "ltr";
+
+                jq("#gnupg-keyserver-save").button().click(function(e){
+                    gpgauth.plugin.gpgSetPreference("keyserver", jq("#gnupg-keyserver-input")[0].value);
+                    jq(this).hide();
+                });
+
+                jq("#gnupg-keyserver-input").each(function() {
+                    // Save current value of element
+                    jq(this).data('oldVal', jq(this).val());
+
+                    // Look for changes in the value
+                    jq(this).bind("change propertychange keyup input paste", function(event){
+                        // If value has changed...
+                        if (jq(this).data('oldVal') != jq(this).val()) {
+                            // Updated stored value
+                            jq(this).data('oldVal', jq(this).val());
+
+                            // Show save dialog
+                            if (jq(this).val() != gpgauth.plugin.gpgGetPreference("keyserver").value)
+                                jq("#gnupg-keyserver-save").show();
+                            else
+                                jq("#gnupg-keyserver-save").hide();
+                        }
+                    })
+                })[0].value = gpgauth.plugin.gpgGetPreference("keyserver").value;
+
+                jq("#gnupg-keyserver-input")[0].dir = "ltr";
+
+                jq("#advanced-options-link").click(function(e){
+                    jq("#advanced-options").toggle("slide");
+                });
+            }
+        }
+
+        if (gpgauth.utils.detectedBrowser['vendor'] == "mozilla")
+            jq('#window_functions').hide();
+
+        jq('#close').button().button("option", "label", _("Finished"))
+            .click(function(e) { window.top.close(); });
+
+    },
+}
+
 jq(function(){
+    if (gpgauth.utils.getParameterByName("auto_init") == "true")
+        gpgauth.options.init();
+});
+
+jq(function(){
+    var _ = gpgauth.utils.i18n.gettext;
     jq('#enable-gpgauth-check')[0].checked = 
-        (window.ext.gpgauth_prefs.gpgauth_enabled.get() == 'true');
+        (gpgauth.preferences.gpgauth_enabled.get() == 'true');
 
     jq('#setup_link')[0].href = chrome.extension.getURL('druid.html');
 
@@ -41,16 +274,16 @@ jq(function(){
             keylist_element = document.getElementById('public_keylist');
         } else {
             keylist_element = document.getElementById('private_keylist');
-            enabled_keys = window.ext.gpgauth_prefs.enabled_keys.get();
+            enabled_keys = gpgauth.preferences.enabled_keys.get();
         }
 
         if (!keyList) {
-            var keylist = window.ext.plugin.getPublicKeyList();
+            var keylist = window.ext.gpgauth.plugin.getPublicKeyList();
             if (!keylist) {
                 // if the parsing failed, create an empty keylist
                 keylist = {};
             }
-            var pkeylist = window.ext.plugin.getPrivateKeyList();
+            var pkeylist = window.ext.gpgauth.plugin.getPrivateKeyList();
 
             if (!pkeylist) {
                 // if the parsing failed, create an empty keylist
@@ -68,6 +301,7 @@ jq(function(){
             genkey_button = document.createElement('input');
             genkey_button.setAttribute('value', 'Generate New Key');
             genkey_button.setAttribute('type', 'button');
+            genkey_button.setAttribute('id', 'generate-key-btn');
             jq(genkey_button).button().click(function(e){
                 window.genkey_refresh = false;
                 jq("#genkey-dialog").dialog({
@@ -110,7 +344,7 @@ jq(function(){
                                         if(data == "complete" || data == "complete ") {
                                             window.genkey_refresh = true;
                                             window.genkey_waiting = false;
-                                            new_pkeylist = window.ext.plugin.getPrivateKeyList();
+                                            new_pkeylist = window.ext.gpgauth.plugin.getPrivateKeyList();
                                             generated_key = null;
                                             for (key in new_pkeylist) {
                                                 if (key in window.pkeylist == false) {
@@ -224,7 +458,7 @@ jq(function(){
                 keyobj.className += ' primary_key';
                 enabled = (enabled_keys.indexOf(key) != -1) ? 'checked' : '';
                 status_text = (enabled) ? "Enabled" : "Disabled";
-                default_key = (key == window.ext.gpgauth_prefs.default_key.get()) ? 'checked' : '';
+                default_key = (key == gpgauth.preferences.default_key.get()) ? 'checked' : '';
             }
             status = "Valid";
             keyobj = document.createElement('div');
@@ -254,13 +488,25 @@ jq(function(){
             } else {
                 keyobj.innerHTML = "<h3 class='private_keylist' style='height: 24px;'><a href='#'><span style='margin: 0;width: 50%;'>" + keylist[key].name + 
                     "&nbsp;&nbsp;-&nbsp;&nbsp;[0x" + key.substr(-8) + "]</span></a><span class='trust' style='z-index:1000; left: 12px; top:-25px;height:22px;'>" +
-                    "<input class='enable-check' id='check-" + key +"' type='checkbox' " + enabled + " onclick=\"if ('" + key + "' == window.ext.gpgauth_prefs.default_key.get()){" +
-                    " jq(this).next().addClass('ui-state-active'); return false }; if (this.checked && !window.ext.gpgauth_prefs.default_key.get()) { jq(this).next().next().click(); jq(this).next().next().next().addClass('ui-state-active'); } (this.checked) ? window.ext.gpgauth_prefs.enabled_keys.add('" + key + "') : " +
-                    "window.ext.gpgauth_prefs.enabled_keys.remove('" + key + "'); (this.checked) ? jq(this).button('option', 'label', 'Enabled') : jq(this).button('option', " +
-                    "'label', 'Disabled');\"/\><label for='check-" + key + "' style='z-index:100;'>" + status_text + "</label><input class='default-check' type='radio' name='default_key' " +
+                    "<input class='enable-check' id='check-" + key +"' type='checkbox' " + enabled + "><label for='check-" + key + "' style='z-index:100;'>" + status_text + "</label><input class='default-check' type='radio' name='default_key' " +
                     " id='default-" + key + "' " + default_key + "/\><label class='default-check' style='z-index: 0; margin-left: 0px;' for='default-" + key + "'>Set as default</label></span></h3>";
             }
             keylist_element.appendChild(keyobj);
+            jq('.enable-check').click(function() {
+                var key = this.id.split("-")[1];
+                if (key == gpgauth.preferences.default_key.get()){
+                    jq(this).next().addClass('ui-state-active');
+                    return false;
+                }
+                if (this.checked && !gpgauth.preferences.default_key.get()) {
+                    jq(this).next().next().click();
+                    jq(this).next().next().next().addClass('ui-state-active');
+                }
+                (this.checked) ? gpgauth.preferences.enabled_keys.add(key) :
+                    gpgauth.preferences.enabled_keys.remove(key);
+                (this.checked) ? jq(this).button('option', 'label', 'Enabled') :
+                    jq(this).button('option', 'label', 'Disabled');
+            });
             keylist[key].nuids = 0;
             for (uid in keylist[key].uids) {
                 keylist[key].nuids += 1;
@@ -310,7 +556,7 @@ jq(function(){
                         }
                         email = (keylist[sig_keyid].uids[0].email.length > 1) ? "&lt;" + keylist[sig_keyid].uids[0].email + "&gt;" : "(no email address provided)"
                         uidobjbody.innerHTML += "<div id='sig-" + sig_keyid + "-" + sig + "' class='signature-box'>" +
-                            "<img src='images/badges/stock_signature.png'><span class='signature-uid'>" + 
+                            "<img src='skin/images/badges/stock_signature.png'><span class='signature-uid'>" + 
                             keylist[sig_keyid].name + "</span><br/\><span class='signature-email'>" + 
                             email + "</span><br/\><span class='signature-keyid'>" + sig_keyid + "</span><br/\><input type='button' class='delsig-button' id='delsig-" + type + "-" + key + "-" + uid + "-" + sig + "' value='Delete'/\></div>";
                     }
@@ -350,18 +596,18 @@ jq(function(){
         jq('.private-key-option-button').button().click(function(e){
             params = this.id.split('-');
             if (params[0] == "disable")
-                window.ext.plugin.gpgDisableKey(params[2]);
+                window.ext.gpgauth.plugin.gpgDisableKey(params[2]);
             else
-                window.ext.plugin.gpgEnableKey(params[2]);
+                window.ext.gpgauth.plugin.gpgEnableKey(params[2]);
             console.log(".public-key-option-button pressed..", params);
             buildKeylist(null, params[1], params[2], null);
         });
         jq('.public-key-option-button').button().click(function(e){
             params = this.id.split('-');
             if (params[0] == "disable")
-                window.ext.plugin.gpgDisableKey(params[2]);
+                window.ext.gpgauth.plugin.gpgDisableKey(params[2]);
             else
-                window.ext.plugin.gpgEnableKey(params[2]);
+                window.ext.gpgauth.plugin.gpgEnableKey(params[2]);
             console.log(".public-key-option-button pressed..", params);
             buildKeylist(null, params[1], params[2], null);
         });
@@ -374,29 +620,29 @@ jq(function(){
                 autoOpen: false
             });
             params = this.id.split('-');
-            enabled_keys = window.ext.gpgauth_prefs.enabled_keys.get();
+            enabled_keys = gpgauth.preferences.enabled_keys.get();
             jq('#createsig-form')[0].innerHTML = "<p class='help-text'>Please select which of your keys to create the signature with:</p>";
             current_signatures = keylist[params[2]].uids[params[3]].signatures;
             cursig = [];
             for (sig in current_signatures) {
                 cursig.push(current_signatures[sig]);
             }
-            if (!window.ext.gpgauth_prefs.enabled_keys.length()) {
-                jq('#createsig-form')[0].innerHTML += "You have not enabled any keys for use with gpgAuth; <a href='" + chrome.extension.getURL('options.html') + "?tab=1&helper=enable'>please click here</a> and select 1 or more keys for use with gpgAuth.";
+            if (!gpgauth.preferences.enabled_keys.length()) {
+                jq('#createsig-form')[0].innerHTML += "You have not enabled any keys for use with gpgAuth; <a href='" + chrome.extension.getURL('options.html') + "?auto_init=true&tab=1&helper=enable'>please click here</a> and select 1 or more keys for use with gpgAuth.";
             }
             for (idx in enabled_keys) {
                 key = enabled_keys[idx];
                 signed = (cursig.indexOf(key) != -1);
                 status = signed? "<div style='width: 28px; display: inline;text-align:right;'><img style='height: 14px; padding: 2px 2px 0 4px;' id='img_" + key + "' " +
-                    "src='/images/badges/stock_signature.png' alt='Already signed with this key'/\></div>" :
+                    "src='/skin/images/badges/stock_signature.png' alt='Already signed with this key'/\></div>" :
                     "<div style='width: 28px; display: inline;text-align:right;'><img style='display:none; height: 14px; padding: 2px 2px 0 4px;' id='img_" + key + "' " +
-                    "src='/images/check.png' alt='Signature added using this key'/\></div>";
+                    "src='/skin/images/check.png' alt='Signature added using this key'/\></div>";
                 if (signed)
                     status += "<input style='display: none;' type='checkbox' id='sign_" + key + "' name='" + key + "' disabled/\>";
                 else
                     status += "<input type='checkbox' id='sign_" + key + "' name='" + key + "'/\>";
                 jq('#createsig-form')[0].innerHTML += status + "<label for='sign_" + key + "' id='lbl-sign_" + key + "' class='help-text'>" + pkeylist[key].name + " (" + key + ")</label><div id='lbl-sign-err_" + key + "' style='display: none;'></div><br/\>";
-                if (window.ext.gpgauth_prefs.enabled_keys.length() == 1 && signed) {
+                if (gpgauth.preferences.enabled_keys.length() == 1 && signed) {
                     jq(jq("button", jq("#createsig-dialog").parent()).children()[1]).hide();
                 }
             }
@@ -414,12 +660,12 @@ jq(function(){
                         error = false;
                         for (item in checked) {
                             if (checked[item].type == "checkbox") {
-                                sign_result = window.ext.plugin.gpgSignUID(params[2], 
+                                sign_result = window.ext.gpgauth.plugin.gpgSignUID(params[2], 
                                     parseInt(params[3]) + 1,
                                     checked[item].name, 1, 1, 1);
                                 error = (error || (sign_result['error'] && sign_result['gpg_error_code'] != 65)); // if this is true, there were errors, leave the dialog open
                                 if (sign_result['error'] && sign_result['gpg_error_code'] != 65) {
-                                    jq('#img_' + checked[item].name)[0].src = "/images/cancel.png"
+                                    jq('#img_' + checked[item].name)[0].src = "/skin/images/cancel.png"
                                     lbl_sign_error = jq('#lbl-sign-err_' + checked[item].name)[0];
                                     lbl_sign_error.style.display = "inline";
                                     lbl_sign_error.style.color = "#f40";
@@ -429,7 +675,7 @@ jq(function(){
                                     jq(jq("button", jq("#createsig-dialog").parent()).children()[1]).text("Try again")
                                 } else {
                                     refresh = true; // the keys have changed, we should refresh on dialog close;
-                                    jq('#img_' + checked[item].name)[0].src = "/images/check.png"
+                                    jq('#img_' + checked[item].name)[0].src = "/skin/images/check.png"
                                 }
                                 jq('#img_' + checked[item].name).show().next().hide();
                             }
@@ -442,12 +688,12 @@ jq(function(){
                     }
                 }
             })
-            if (window.ext.gpgauth_prefs.enabled_keys.length() == 1 && cursig.indexOf(enabled_keys[0]) != -1) {
+            if (gpgauth.preferences.enabled_keys.length() == 1 && cursig.indexOf(enabled_keys[0]) != -1) {
                 jq(jq("button", jq("#createsig-dialog").parent()).children()[1]).hide();
             }
             jq("#createsig-dialog").dialog('open');
         });
-        if (!window.ext.plugin.webpg_status.gpgconf_detected) {
+        if (!window.ext.gpgauth.plugin.webpg_status.gpgconf_detected) {
             jq('.uid-option-button').button({disabled: true, label: "Cannot create signatures without gpgconf utility installed"});
         }
         jq('.uid-revoked').button({disabled: true, label: "Cannot sign a revoked UID"});
@@ -463,7 +709,7 @@ jq(function(){
                 jq("#delsig-confirm").dialog("option", "height", "200");
             }
             jq("#delsig-confirm").dialog("option", "buttons", { "Delete": function() {
-                        delsig_result = window.ext.plugin.gpgDeleteUIDSign(params[2], parseInt(params[3]) + 1, parseInt(params[4]) + 1);
+                        delsig_result = window.ext.gpgauth.plugin.gpgDeleteUIDSign(params[2], parseInt(params[3]) + 1, parseInt(params[4]) + 1);
                         console.log('delete', delsig_result, params[2], parseInt(params[3]) + 1, parseInt(params[4]) + 1)
                         //jq(calling_button).parent().parent()[0].removeChild(jq(calling_button).parent()[0]);
                         buildKeylist(null, params[1], params[2], params[3]);
@@ -512,11 +758,11 @@ jq(function(){
             })
             .click(function(e) {
                 keyid = this.id.substr(-16);
-                window.ext.gpgauth_prefs.default_key.set(keyid);
+                gpgauth.preferences.default_key.set(keyid);
                 enable_element = jq('#check-' + this.id.substr(-16))[0];
-                enabled_keys = window.ext.gpgauth_prefs.enabled_keys.get();
+                enabled_keys = gpgauth.preferences.enabled_keys.get();
                 if (enabled_keys.indexOf(keyid) == -1) {
-                    window.ext.gpgauth_prefs.enabled_keys.add(keyid);
+                    gpgauth.preferences.enabled_keys.add(keyid);
                     jq(enable_element).trigger('click');
                     jq(enable_element).next()[0].innerHTML = jq(enable_element).next()[0].innerHTML.replace('Disabled', 'Enabled');
                 }
@@ -528,14 +774,14 @@ jq(function(){
     //buildKeylist(keylist=null, 'private');
 
     jq('#trust-level-sel').ready(function(e){
-        trust_level = window.ext.gpgauth_prefs.trust_level.get();
+        trust_level = gpgauth.preferences.trust_level.get();
         jq(this).find('#trust-list').children().eq(trust_level).addClass('selected');
         jq(this).find('#trust-level-desc').children().eq(trust_level).addClass('selected');
     });
     jq('#trust-level-sel').mouseenter( function(){
-        jq('#trust-level-desc').slideToggle(600);
+        jq('#trust-level-desc').slideToggle(200);
     }).mouseleave(function(){
-        jq('#trust-level-desc').slideToggle(600);
+        jq('#trust-level-desc').slideToggle(200);
     });
 
     jq('.level').click(function(e){
@@ -544,7 +790,7 @@ jq(function(){
         jq('#trust-level-desc').children('.selected').removeClass('selected');
         current_index = jq(this).parent().find('span').index(this);
         jq('#trust-level-desc').children().eq(current_index).addClass('selected');
-        window.ext.gpgauth_prefs.trust_level.set(current_index);
+        gpgauth.preferences.trust_level.set(current_index);
     });
     jq('.trust-level-desc').click(function(e){
         jq(this).parent().find('.selected').removeClass('selected');
@@ -552,16 +798,16 @@ jq(function(){
         current_index = jq(this).parent().find('div').index(this);
         jq('#trust-list').children('.selected').removeClass('selected');
         jq('#trust-list').children().eq(current_index).addClass('selected');
-        window.ext.gpgauth_prefs.trust_level.set(current_index);
+        gpgauth.preferences.trust_level.set(current_index);
     });
 
     jq('#enable-gpgauth-check').button({
-        'label': (window.ext.gpgauth_prefs.gpgauth_enabled.get() == 'true') ? 'Enabled' : 'Disabled'
+        'label': (gpgauth.preferences.gpgauth_enabled.get() == 'true') ? 'Enabled' : 'Disabled'
         }).click(function(e) {
-            (window.ext.gpgauth_prefs.gpgauth_enabled.get() == 'true') ? window.ext.gpgauth_prefs.gpgauth_enabled.set(false) : ext.gpgauth_prefs.gpgauth_enabled.set(true);
-            status = (window.ext.gpgauth_prefs.gpgauth_enabled.get() == 'true') ? 'Enabled' : 'Disabled'
+            (gpgauth.preferences.gpgauth_enabled.get() == 'true') ? gpgauth.preferences.gpgauth_enabled.set(false) : gpgauth.preferences.gpgauth_enabled.set(true);
+            status = (gpgauth.preferences.gpgauth_enabled.get() == 'true') ? 'Enabled' : 'Disabled'
             jq(this).button('option', 'label', status);
-            this.checked = (window.ext.gpgauth_prefs.gpgauth_enabled.get() == 'true');
+            this.checked = (gpgauth.preferences.gpgauth_enabled.get() == 'true');
             jq(this).button('refresh');
         });
 
@@ -577,7 +823,7 @@ jq(function(){
             uidcontainer = item.parentNode.parentNode.children[1];
         }
         uidlist = jq(uidcontainer).children('[class~=uid]');
-        var keylist = window.ext.plugin.getPublicKeyList();
+        var keylist = window.ext.gpgauth.plugin.getPublicKeyList();
         if (!keylist) {
             // if the parsing failed, create an empty keylist
             keylist = {};
@@ -586,9 +832,9 @@ jq(function(){
         GAUTrust = -1;
         uidlist.each(function(event, uidobj) {
             uid = uidobj.id.split('-')[1];
-            enabled_keys = window.ext.gpgauth_prefs.enabled_keys.get();
+            enabled_keys = gpgauth.preferences.enabled_keys.get();
             for (privateKeyId in enabled_keys) {
-                GAUTrust = window.ext.plugin.verifyDomainKey(keylist[key].uids[uid].uid, key, uid, enabled_keys[privateKeyId]);
+                GAUTrust = window.ext.gpgauth.plugin.verifyDomainKey(keylist[key].uids[uid].uid, key, uid, enabled_keys[privateKeyId]);
                 if (GAUTrust == 0) {
                     break;
                 }
@@ -622,8 +868,8 @@ jq(function(){
     jq('#close').button().click(function(e) { window.close(); });
     if (query_string.helper) {
         function bounce(elem_class, left, top, perpetual) {
-            nleft = jq(elem_class).parent().offset().left - left;
-            ntop = jq(elem_class).parent().offset().top - top;
+            var nleft = jq(jq(elem_class)[0]).parent().offset().left - left;
+            var ntop = jq(jq(elem_class)[0]).parent().offset().top - top;
             jq("#error_help").parent().css('left', nleft).css('top', ntop).
                 effect("bounce", {times: 1, direction: 'up', distance: 8 }, 1200, function(){ if (perpetual) { bounce(elem_class, left, top, perpetual) } } )
         }
@@ -631,12 +877,22 @@ jq(function(){
         helper_arrow.innerHTML = '' +
             '<div id="error_help" style="text-align: center; display: inline; text-shadow: #000 1px 1px 1px; color: #fff; font-size: 12px;">' +
             '<div id="help_text" style="display: block; -moz-border-radius: 4px; -webkit-border-radius: 4px; z-index: 10; padding: 8px 5px 8px 5px; margin-right: -5px; background-color: #ff6600; min-width: 130px;"></div>' +
-            '<span style="margin-left: 94px;"><img width="30px" src="/images/help_arrow.png"></span>' +
+            '<span style="margin-left: 94px;"><img width="30px" src="/skin/images/help_arrow.png"></span>' +
             '</div>';
         helper_arrow.style.position = 'absolute';
         helper_arrow.style.zIndex = 1000;
         jq(helper_arrow).css("max-width", "75%");
         switch(query_string.helper){
+            case 'generate':
+                jq(helper_arrow).find('#help_text').text(_("Click to generate a new key"));
+                document.body.appendChild(helper_arrow);
+                jq('#generate-key-btn').click(function() {
+                    jq(helper_arrow).stop(true, true).stop(true, true);
+                    document.body.removeChild(helper_arrow.parentElement);
+                    qs.helper = "";
+                });
+                bounce('#generate-key-btn', 5, 44, true);
+                break;
             case 'enable':
                 jq(helper_arrow).find('#help_text')[0].innerHTML = "Click to enable key";
                 document.body.appendChild(helper_arrow);

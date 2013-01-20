@@ -28,8 +28,9 @@
         chrome.tabs.getSelected(null, function(_tab) {
             result = parseUrl(_tab.url);
             domain = result['domain'];
-            console.log(_tab.url, domain);
-            chrome.extension.sendRequest({msg: 'doKeyImport', 'tab': _tab, 'domain': domain},
+            console.log(_tab, _tab.url, domain);
+            chrome.extension.sendRequest({msg: 'doKeyImport', 'tab': _tab, 'domain': domain, 'protocol':
+                result['proto_full']},
                 function(response) {
                     if (response.result.valid) {
                         document.getElementById("title").innerHTML = "Please review these " + response.result.msg['considered'] + " Keys -";
@@ -39,7 +40,7 @@
                         if (!response.result.msg['error']) {
                             bg = chrome.extension.getBackgroundPage();
                             for (key_item in response.result.msg['imports']) {
-                                keylist = bg.plugin.getDomainKey(response.result.msg['imports'][key_item]['fingerprint']);
+                                keylist = bg.gpgauth.plugin.getDomainKey(response.result.msg['imports'][key_item]['fingerprint']);
                                 for (key_obj in keylist) {
                                     key = keylist[key_obj];
                                     import_result += "<div class='imported_key'>Key 0x" +
@@ -47,7 +48,7 @@
                                     for (uid_item in key.uids) {
                                         import_result += "&nbsp;&nbsp;" + key.uids[uid_item].uid + "<br>";
                                     }
-                                    import_result += "<br><br><input type='button' value='Set Trust' onclick='window.location=\"" + chrome.extension.getURL('options.html') + "?tab=2&openkey=" + key.fingerprint.substr(-16, 16) + "&strip=true&helper=signuids\";'/\></div>";
+                                    import_result += "<br><br><input type='button' value='Set Trust' onclick='window.location=\"" + chrome.extension.getURL('options.html') + "?auto_init=true&tab=2&openkey=" + key.fingerprint.substr(-16, 16) + "&strip=true&helper=signuids\";'/\></div>";
                                 }
                             }
                             addEventListener("unload", function (event) {
@@ -80,14 +81,20 @@
                             title.innerHTML = error_response.result.error;
                             switch(error_response.result.errorno) {
                                 case 1:
-                                    import_msg = (error_response.result.headers['X-GPGAuth-Pubkey-URL']) ? "Click on the \"import\" button below if you would like to attempt to import it, or log in without verifying the server.<br><br><div id='options'><input type='button' value='Login without verifying' onclick='callDoUserLogin(window.response);window.close();'/\><input type='button' value='Import' onclick='initiateImport();'/\>" : "We were unable to locate this servers public key for import.";
+                                    import_msg = (error_response.result.headers['X-GPGAuth-Pubkey-URL']) ? "Click on the \"import\" button below if you would like to attempt to import it, or log in without verifying the server.<br><br><div id='options'><input type='button' value='Login without verifying' onclick='callDoUserLogin(window.response);window.close();'/\><input type='button' class='import' value='Import'/\>" : "We were unable to locate this servers public key for import.";
                                     desc.innerHTML = "You do not have the public key for this domain.<br><br>" + import_msg + "</div>";
+                                    $('.import').click(function() {
+                                        initiateImport()
+                                    });
                                     break;
                                 case 2:
-                                    desc.innerHTML = "In order for gpgAuth to determine the trust for this domain, you must enable at least 1 private key in the options window<br><br><div id='options'><input type='button' onclick='window.location = \"" + chrome.extension.getURL('options.html') + "?tab=1&helper=enable\";' value=\"Click here to go to the options page\"/\></div>";
+                                    desc.innerHTML = "In order for gpgAuth to determine the trust for this domain, you must enable at least 1 private key in the options window<br><br><div id='options'><input type='button' class='enable-key' value=\"Click here to go to the options page\"/\></div>";
+                                    $('.enable-key').click(function() {
+                                        window.location = chrome.extension.getURL('options.html') + "?auto_init=true&tab=1&helper=enable";
+                                    });
                                     break;
                                 case 3:
-                                    desc.innerHTML = "In order to perform verification of a domain, gpgAuth must know your desired default key.<br><br><div id='options'><input type='button' onclick='window.location = \"" + chrome.extension.getURL('options.html') + "?tab=1&helper=default\"' value=\"Click here to go to the options page\"/\></div>";
+                                    desc.innerHTML = "In order to perform verification of a domain, gpgAuth must know your desired default key.<br><br><div id='options'><input type='button' onclick='window.location = \"" + chrome.extension.getURL('options.html') + "?auto_init=true&tab=1&helper=default\"' value=\"Click here to go to the options page\"/\></div>";
                                     break;
                                 case 4: // The server does not have the users reported public key
                                     desc.innerHTML = "The server was unable to find or otherwise access your Public Key; It is possible your key is expired or perhaps the server does not have your Public Key on file.";
@@ -100,6 +107,12 @@
                                     break;
                                 case 7: // The server could not locate an account associated with the key id
                                     desc.innerHTML = "The server was unable to locate a user account associated with the provided key.";
+                                    break;
+                                case 8:
+                                    desc.innerHTML = "In order for gpgAuth to determine the trust for this domain, you must have at least one private key in your keyring<br><br><div id='options'><input type='button' class='generate-key' value=\"Click here to go to the options page\"/\></div>";
+                                    $('.generate-key').click(function() {
+                                        window.location = chrome.extension.getURL('options.html') + "?auto_init=true&tab=1&helper=generate";
+                                    });
                                     break;
                             }
                         }

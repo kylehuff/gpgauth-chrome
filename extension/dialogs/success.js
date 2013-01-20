@@ -18,7 +18,7 @@
             }
         }
         code += "response.result['valid'] = 'override';" +
-        "gpgAuth.logout(response);";
+        "gpgauth.client.logout(response);";
         chrome.tabs.executeScript(
             window.response.result.validation.tab.id, 
             {'code': code}

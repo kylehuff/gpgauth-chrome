@@ -37,12 +37,17 @@ gpgauth.client = {
         if (!this.gpg_elements) {
             this.gpg_elements = {};
         }
+        console.log("loaded");
         // Setup a listener for incomming headers
         chrome.extension.sendRequest({msg: 'enabled'}, function(response) { gpgauth.client.init(response); });
     },
 
     _onRequest: function(request, sender, sendResponse) {
-        console.log(request);
+        console.log(request.responseHeaders['X-GPGAuth-Progress'])
+        if (request.msg == "processPage" && request.responseHeaders['X-GPGAuth-Progress'] == "stage0") {
+            gpgauth.client.gpgauth_headers = request.responseHeaders;
+            gpgauth.client.processPage();
+        }
     },
 
     init: function(response) {
@@ -60,7 +65,7 @@ gpgauth.client = {
             this.gpg_elements[document.domain] = new Array();
         }
 
-        if(!this.gpg_elements[document.domain]['headers_checked']){
+        if (response.result.requestType == "HEAD") {
             /* Extension has been loaded, make a 'HEAD' request to server for the
                current page to discover if gpgAuth enabled and any related gpgAuth
                requirements */
@@ -78,6 +83,23 @@ gpgauth.client = {
 
             /* Create an object to store any gpgAuth specific headers returned from the server. */
             this.gpgauth_headers = gpgauth.client.getHeaders(response_headers);
+            this.processPage();
+        } else {
+            // Setup a listener for making changes to the page
+            console.log("setting listener");
+            chrome.extension.sendRequest({msg: 'getHeaders'}, function(response) {
+                gpgauth.client.gpgauth_headers = response.result.headers;
+                gpgauth.client.processPage();
+            });
+//            gpgauth.utils._onRequest.addListener(gpgauth.client._onRequest);
+        }
+
+    },
+
+
+    processPage: function() {
+        console.log("processPage");
+        if(!this.gpg_elements[document.domain]['headers_checked']){
             this.gpg_elements[document.domain]['headers'] = this.gpgauth_headers;
             this.gpg_elements[document.domain]['headers_checked'] = true;
         }
@@ -88,8 +110,9 @@ gpgauth.client = {
             chrome.extension.sendRequest({msg: 'show', 'params': { 'domain': document.domain, 'headers': this.gpgauth_headers }}, function(response) {});
             if (this.gpgauth_headers[SERVER_VERIFICATION_URL] != 'invalid') {
                 /* do server tests */
+                console.log("do server tests");
                 chrome.extension.sendRequest({msg: 'doServerTests', params: {'domain': document.domain, 
-                    'server_verify_url': this.gpgauth_headers[SERVER_VERIFICATION_URL],
+                    'server_verify_url': document.location.protocol + document.location.host + this.gpgauth_headers[SERVER_VERIFICATION_URL],
                     'headers': this.gpgauth_headers }}, 
                     function(response) { gpgauth.client.serverResult(response) });
             }
@@ -105,7 +128,7 @@ gpgauth.client = {
         if (response.result['server_validated'] == true || response.result['valid'] == 'override') {
             if (this.gpgauth_headers['X-GPGAuth-Requested'] == 'true' || response.result['valid'] == 'override') {
                 chrome.extension.sendRequest({msg: 'doUserLogin', params: {'domain': document.domain, 
-                        'service_login_url': this.gpgauth_headers[SERVICE_LOGIN_URL] }},
+                        'service_login_url': document.location.protocol + document.location.host + this.gpgauth_headers[SERVICE_LOGIN_URL] }},
                         function(response) { gpgauth.client.login(response) });
             }
         }

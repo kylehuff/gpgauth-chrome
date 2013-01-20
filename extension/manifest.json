@@ -4,6 +4,7 @@
     "description": "The offical gpgAuth web client extention for Google Chrome and Chromium",
     "manifest_version": 2,
     "content_security_policy": "script-src 'self'; object-src 'self'",
+    "default_locale": "en",
     "background": {
       "scripts": [
         "constants.js",
@@ -14,15 +15,17 @@
       "persistent": true
     },
     "icons": {
-        "128": "images/gpgauth-128.png",
-        "16": "images/gpgauth-16.png",
-        "32": "images/gpgauth-32.png",
-        "48": "images/gpgauth-48.png",
-        "64": "images/gpgauth-64.png"
+        "128": "skin/images/gpgauth-128.png",
+        "16": "skin/images/gpgauth-16.png",
+        "32": "skin/images/gpgauth-32.png",
+        "48": "skin/images/gpgauth-48.png",
+        "64": "skin/images/gpgauth-64.png"
     },
     "content_scripts": [{
         "matches": ["<all_urls>"],
         "js": [
+            "constants.js",
+            "utils.js",
             "gpgauth.js"
         ],
         "run_at": "document_start"
@@ -30,11 +33,12 @@
     "permissions": [
         "<all_urls>",
         "tabs",
+        "webRequest",
         "notifications"
     ],
-    "options_page": "options.html",
+    "options_page": "options.html?auto_init=true",
     "page_action": {
-        "default_icon": "images/badges/default.png",
+        "default_icon": "skin/images/badges/default.png",
         "default_title": "gpgAuth Enabled website",
         "default_popup": "dialogs/enabled.html"
     },

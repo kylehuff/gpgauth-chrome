@@ -7,7 +7,7 @@ jq(function() {
         code = "response = {};" +
             "response.result = {};" +
             "response.result['valid'] = 'override';" +
-            "gpgAuth.serverResult(response);";
+            "gpgauth.client.serverResult(response);";
         chrome.tabs.executeScript(
             window.response.result.validation.tab.id, 
             {'code': code}

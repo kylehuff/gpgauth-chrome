@@ -1,0 +1,75 @@
+# Translations template for gpgauth-chrome.
+# Copyright (C) 2013 CURETHEITCH
+# This file is distributed under the same license as the gpgauth-chrome
+# project.
+# Automatically generated, 2013.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gpgauth-chrome 1.2.0\n"
+"Report-Msgid-Bugs-To: gpgauth-translations@gpgauth.org\n"
+"POT-Creation-Date: 2013-01-13 16:08-0500\n"
+"PO-Revision-Date: 2013-01-13 16:08-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 0.9.6\n"
+"Language: hi\n"
+
+#: extension/background.js:118
+msgid "WebPG Plugin failed to load"
+msgstr ""
+
+#: extension/utils.js:315
+msgid "Text copied to clipboard"
+msgstr ""
+
+#: extension/utils.js:318
+msgid "There may have been a problem placing the data into the clipboard"
+msgstr ""
+
+#: extension/utils.js:345
+msgid "gpgauth Options"
+msgstr ""
+
+#: extension/utils.js:346
+msgid "gpgauth Key Manager"
+msgstr ""
+
+#: extension/utils.js:347
+msgid "About gpgauth"
+msgstr ""
+
+#: extension/utils.js:672
+msgid "Paste Public Key"
+msgstr ""
+
+#: extension/utils.js:691
+msgid "Clear-sign this text"
+msgstr ""
+
+#: extension/utils.js:710
+msgid "Import this Key"
+msgstr ""
+
+#: extension/utils.js:729
+msgid "Encrypt this text"
+msgstr ""
+
+#: extension/utils.js:748
+msgid "Decrypt this text"
+msgstr ""
+
+#: extension/utils.js:767
+msgid "Verify this text"
+msgstr ""
+
+#: extension/utils.js:797
+msgid "Options"
+msgstr ""
+
+#: extension/utils.js:816
+msgid "Key Manager"
+msgstr ""

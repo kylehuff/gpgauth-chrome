@@ -26,6 +26,7 @@ gpgauth.background = {
 
     init: function() {
         var _ = gpgauth.utils.i18n.gettext;
+        gpgauth.background.headers = {};
         var gnupghome = (gpgauth.preferences.gnupghome.get() != -1 &&
             gpgauth.preferences.gnupghome.get()) ? gpgauth.preferences.gnupghome.get() : "";
 
@@ -85,6 +86,39 @@ gpgauth.background = {
                    gpgauth.preferences.enabled_keys.remove(enabled_keys[key]);
                 }
             }
+
+            if (typeof(chrome.webRequest)!="undefined") {
+                gpgauth.background.requestType = "event";
+                chrome.webRequest.onHeadersReceived.addListener(function(details) {
+                    gpgauth.background.headers[details.tabId] = {
+                        'url': details.url,
+                        'request_id': details.requestId,
+                        'headers': {}
+                    }
+                    details.responseHeaders.forEach(
+                        function(header) {
+                            // Collect all of the X-GPGAuth-* headers and send
+                            //  them to the tab that made the request
+                            if (header.name.indexOf("X-GPGAuth") == 0) {
+                                console.log(header.name, header.value);
+                                gpgauth.background.headers[details.tabId]['headers'][header.name] = header.value;
+                            }
+                        }
+                    );
+                    var headers = gpgauth.background.headers[details.tabId].headers;
+                    gpgauth.background.headers[details.tabId].headers.length = Object.keys(headers).length;
+                }, {
+                    urls: [
+                        "<all_urls>"
+                    ],
+                    types: ["main_frame"]
+                    },
+                    ["responseHeaders"]
+                );
+            } else {
+                gpgauth.background.requestType = "HEAD";
+            }
+
             console.log("gpgAuth background initialized");
         } else {
             if (gpgauth.plugin.valid == undefined) {
@@ -118,9 +152,9 @@ gpgauth.background = {
             user_authenticated = headers['X-GPGAuth-Authenticated'] == 'true' ? true : false;
             if (gpgauth.background.gpg_elements[request.params['domain']]) {
                 if (gpgauth.background.gpg_elements[request.params['domain']]['server_validated'] == true) {
-                    var icon = user_authenticated ? 'images/badges/verified_auth.png' : 'images/badges/server_verified.png';
+                    var icon = user_authenticated ? 'skin/images/badges/verified_auth.png' : 'skin/images/badges/server_verified.png';
                 } else {
-                    var icon = user_authenticated ? 'images/badges/authenticated.png' : 'images/badges/default.png';
+                    var icon = user_authenticated ? 'skin/images/badges/authenticated.png' : 'skin/images/badges/default.png';
                 }
                 chrome.pageAction.setIcon({
                     tabId: sender.tab.id,
@@ -139,12 +173,16 @@ gpgauth.background = {
             // Iterate through the returned domain_keylist to ensure it is not an empty object
             for (var key in domain_keylist) { domain_key = key; break; }
             if (!localStorage.enabled_keys) {
-                response = {'valid': false, 'errorno': 2, 'error': 'You have not enabled any personal keys for use with gpgAuth'};
+                if (Object.keys(gpgauth.secret_keys).length < 1)
+                    response = {'valid': false, 'errorno': 8, 'error': 'You have not generated any personal keys for use with gpgAuth' };
+                else
+                    response = {'valid': false, 'errorno': 2, 'error': 'You have not enabled any personal keys for use with gpgAuth' };
                 var dialog = 'dialogs/popup_error.html';
             } else if (!localStorage.default_key) {
                 response = {'valid': false, 'errorno': 3, 'error': 'You have not specified a default personal key to use.'};
                 var dialog = 'dialogs/popup_error.html';
             } else {
+                console.log(request);
                 gpgauth.background.gpg_elements[request.params['domain']]['headers'] = request.params['headers'];
                 response = gpgauth.background.doServerTests(request.params['domain'], domain_keylist, request.params['server_verify_url'], request.params['port']);
                 user_authenticated = request.params['headers']['X-GPGAuth-Authenticated'] == 'true' ? true : false;
@@ -162,13 +200,13 @@ gpgauth.background = {
                 }
                 chrome.pageAction.setPopup({tabId: sender.tab.id, popup: dialog});
                 if (response['server_validated'] == true) {
-                    icon = user_authenticated ? 'images/badges/verified_auth.png' : 'images/badges/server_verified.png';
+                    icon = user_authenticated ? 'skin/images/badges/verified_auth.png' : 'skin/images/badges/server_verified.png';
                     if (gpgauth.background.pulses[sender.tab.id] != null) {
                         clearInterval(gpgauth.background.pulses[sender.tab.id]['timer']);
                     }
                     response = {'server_validated': true, 'validation': response};
                 } else {
-                    icon = user_authenticated ? 'images/badges/authenticated.png' : 'images/badges/default.png';
+                    icon = user_authenticated ? 'skin/images/badges/authenticated.png' : 'skin/images/badges/default.png';
                     response = {'server_validated': false, 'validation': response};
                 }
             }
@@ -176,7 +214,7 @@ gpgauth.background = {
                 gpgauth.background.gpg_elements[request.params['domain']]['error'] = response['error'];
                 gpgauth.background.gpg_elements[request.params['domain']]['errorno'] = response['errorno'];
                 response.validation = {'headers' :gpgauth.background.gpg_elements[request.params['domain']]['headers'], domain: request.params['domain'] };
-                var icon = user_authenticated ? 'images/badges/authenticated.png' : 'images/badges/default.png';
+                var icon = user_authenticated ? 'skin/images/badges/authenticated.png' : 'skin/images/badges/default.png';
                 chrome.pageAction.setPopup({tabId: sender.tab.id, popup: dialog});
             }
             chrome.pageAction.setIcon({
@@ -218,7 +256,10 @@ gpgauth.background = {
             }
         }
         if (request.msg == 'enabled') {
-            response = {'enabled': gpgauth.preferences.gpgauth_enabled.get() };
+            response = {
+                'enabled': gpgauth.preferences.gpgauth_enabled.get(),
+                'requestType': gpgauth.background.requestType
+            };
         }
         if (request.msg == 'getPopupError') {
             parsed_url = gpgauth.background.parseUrl(request.tab.url);
@@ -269,7 +310,7 @@ gpgauth.background = {
             }
             chrome.pageAction.setIcon({
                 tabId: sender.tab.id,
-                path: 'images/badges/authenticated.png'
+                path: 'skin/images/badges/authenticated.png'
             });
             chrome.pageAction.setPopup({tabId: sender.tab.id, popup: "dialogs/success.html"});
         }
@@ -287,11 +328,14 @@ gpgauth.background = {
                 'counter': 10
             }
 //            gpgauth.background.pulses[sender.tab.id]['timer'] = setInterval(gpgauth.background.pulse(sender.tab.id), 500);
-            response = {'valid': false, 'errorno': 2, 'error': 'You have not enabled any personal keys for use with gpgAuth' };
+            if (Object.keys(gpgauth.secret_keys).length < 1)
+                response = {'valid': false, 'errorno': 8, 'error': 'You have not generated any personal keys for use with gpgAuth' };
+            else
+                response = {'valid': false, 'errorno': 2, 'error': 'You have not enabled any personal keys for use with gpgAuth' };
         }
         if (request.msg == 'doKeyImport') {
             headers = gpgauth.background.gpg_elements[request.domain]['headers'];
-            pubkey_url = headers['X-GPGAuth-Pubkey-URL'];
+            pubkey_url = request.protocol + request.domain + headers['X-GPGAuth-Pubkey-URL'];
             console.log(request);
             if (pubkey_url) {
                 msg = null;
@@ -319,6 +363,9 @@ gpgauth.background = {
             else
                 msg['error'] = false;
             response = { 'valid': validity, 'msg': msg };
+        }
+        if (request.msg == "getHeaders") {
+            response = { 'headers': gpgauth.background.headers[sender.tab.id].headers };
         }
         // Return the response and let the connection be cleaned up.
         sendResponse({'result': response});
@@ -466,7 +513,8 @@ gpgauth.background = {
         this.gpg_elements[domain]['cached'] = false;
         key_results_length = 0;
         for (key in domain_keylist) {
-            key_results_length = 1; break;
+            key_results_length = 1;
+            break;
         }
         key_results = key_results_length > 0 ? gpgauth.background.verifyDomainKey(domain, domain_keylist) : {};
         // If the domain_key_trust has changed, don't use cached server validation
@@ -511,6 +559,7 @@ gpgauth.background = {
 
 
     doServerTokenTests: function(domain, encrypted_token) {
+        console.log("doServerTokenTests");
         // reset server_validated to false in-case of an exception
         this.gpg_elements[domain]['server_validated'] = false;
         var http = new XMLHttpRequest();
@@ -549,7 +598,7 @@ gpgauth.background = {
         port.postMessage({"type": "progress", "data": data});
         port.disconnect();
         var notification = webkitNotifications.createNotification(
-          'images/gpgauth-48.png',
+          'skin/images/gpgauth-48.png',
           'Key Generation Complete',
           'The generation of your new Key is now complete.'
         );
@@ -562,13 +611,13 @@ gpgauth.background = {
             this.pulses[tab_id]['current_icon'] = (this.pulses[tab_id]['current_icon'] == 0) ? 1 : 0;
             chrome.pageAction.setIcon({
                 tabId: tab_id,
-                path: 'images/badges/' + this.pulses[tab_id]['icons'][this.pulses[tab_id]['current_icon']]
+                path: 'skin/images/badges/' + this.pulses[tab_id]['icons'][this.pulses[tab_id]['current_icon']]
             });
         } else {
             clearInterval(this.pulses[tab_id]['timer']);
             chrome.pageAction.setIcon({
                 tabId: tab_id,
-                path: 'images/badges/' + this.pulses[tab_id]['icons'][1]
+                path: 'skin/images/badges/' + this.pulses[tab_id]['icons'][1]
             });
         }
     },

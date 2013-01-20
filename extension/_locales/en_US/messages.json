@@ -1,0 +1,48 @@
+{
+	"WebPG_Plugin_failed_to_load": {
+		"message": "WebPG Plugin failed to load"
+	},
+	"Text_copied_to_clipboard": {
+		"message": "Text copied to clipboard"
+	},
+	"There_may_have_been_a_problem_placing_the_data_into_the_clipboard": {
+		"message": "There may have been a problem placing the data into the clipboard"
+	},
+	"gpgauth_Options": {
+		"message": "gpgauth Options"
+	},
+	"gpgauth_Key_Manager": {
+		"message": "gpgauth Key Manager"
+	},
+	"About_gpgauth": {
+		"message": "About gpgauth"
+	},
+	"Paste_Public_Key": {
+		"message": "Paste Public Key"
+	},
+	"Clear_sign_this_text": {
+		"message": "Clear-sign this text"
+	},
+	"Import_this_Key": {
+		"message": "Import this Key"
+	},
+	"Encrypt_this_text": {
+		"message": "Encrypt this text"
+	},
+	"Decrypt_this_text": {
+		"message": "Decrypt this text"
+	},
+	"Verify_this_text": {
+		"message": "Verify this text"
+	},
+	"Options": {
+		"message": "Options"
+	},
+	"Key_Manager": {
+		"message": "Key Manager"
+	},
+	"empty_end": {
+		"message": "N/A",
+		"description": "Just an empty item to mark our end; No need to translate."
+	}
+}

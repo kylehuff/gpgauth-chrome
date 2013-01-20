@@ -293,9 +293,6 @@ gpgauth.preferences = {
                 keyid - <str> The KeyID to add to the preference item
         */
         set: function(keyid) {
-            if (gpgauth.preferences.encrypt_to_self.get() == 'true') {
-                gpgauth.plugin.gpgSetPreference("encrypt-to", keyid);
-            }
             gpgauth.plugin.gpgSetPreference("default-key", keyid);
         },
 
